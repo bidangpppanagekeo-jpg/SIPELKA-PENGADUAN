@@ -3,7 +3,7 @@ import {
   Lock, Shield, CheckCircle2, AlertTriangle, Search, Filter, 
   Download, Printer, FileText, Send, User, MapPin, Calendar, 
   MessageSquare, ChevronRight, X, Clock, Eye, ExternalLink, RefreshCw,
-  Table2, Check, AlertCircle, LogOut
+  Table2, Check, AlertCircle, LogOut, Copy
 } from 'lucide-react';
 import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
 import { CATEGORY_LABELS } from '../data/mockData';
@@ -19,6 +19,13 @@ import {
   getSavedSpreadsheetInfo, 
   ActiveSpreadsheetInfo 
 } from '../services/googleSheets';
+import { 
+  getSavedAppsScriptUrl, 
+  saveAppsScriptUrl, 
+  syncAllToAppsScript, 
+  APPS_SCRIPT_TEMPLATE_CODE,
+  DEFAULT_APPS_SCRIPT_PROJECT_ID 
+} from '../services/appsScript';
 
 interface AdminPortalProps {
   reports: ReportItem[];
@@ -75,6 +82,37 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   
   // Mandatory Confirmation Modal before updating/modifying Google Sheets data
   const [showSyncConfirmModal, setShowSyncConfirmModal] = useState<boolean>(false);
+
+  // Google Apps Script Integration State
+  const [appsScriptUrl, setAppsScriptUrlState] = useState<string>(() => getSavedAppsScriptUrl());
+  const [isSyncingAppsScript, setIsSyncingAppsScript] = useState<boolean>(false);
+  const [appsScriptMsg, setAppsScriptMsg] = useState<string>('');
+  const [showAppsScriptModal, setShowAppsScriptModal] = useState<boolean>(false);
+  const [copiedScript, setCopiedScript] = useState<boolean>(false);
+
+  const handleSyncAppsScript = async () => {
+    setIsSyncingAppsScript(true);
+    setAppsScriptMsg('');
+    try {
+      const res = await syncAllToAppsScript(reports, appsScriptUrl);
+      setAppsScriptMsg(res.message);
+    } catch (e: any) {
+      setAppsScriptMsg(e.message || 'Gagal menyinkronkan data ke Google Apps Script.');
+    } finally {
+      setIsSyncingAppsScript(false);
+    }
+  };
+
+  const handleSaveAppsScriptUrl = (url: string) => {
+    setAppsScriptUrlState(url);
+    saveAppsScriptUrl(url);
+  };
+
+  const handleCopyScriptCode = () => {
+    navigator.clipboard.writeText(APPS_SCRIPT_TEMPLATE_CODE);
+    setCopiedScript(true);
+    setTimeout(() => setCopiedScript(false), 3000);
+  };
 
   // Listen to Google Auth state & enforce bidangpppanagekeo@gmail.com
   useEffect(() => {
@@ -593,6 +631,55 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </button>
               </>
             )}
+          </div>
+        </div>
+
+        {/* Google Apps Script Integration Strip */}
+        <div className="bg-teal-900 text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-teal-800 text-xs shrink-0">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-teal-100">Google Apps Script Web App Terhubung</span>
+                <span className="bg-teal-800 text-teal-200 text-[10px] px-2 py-0.5 rounded font-mono border border-teal-700">
+                  ID Proyek: {DEFAULT_APPS_SCRIPT_PROJECT_ID.substring(0, 16)}...
+                </span>
+              </div>
+              <p className="text-[11px] text-teal-200/90 mt-0.5">
+                Pengaduan baru otomatis terkirim ke Web App Google Apps Script.
+              </p>
+              {appsScriptMsg && (
+                <p className="text-[11px] text-amber-300 font-semibold mt-0.5">{appsScriptMsg}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleSyncAppsScript}
+              disabled={isSyncingAppsScript}
+              className="px-3 py-1.5 bg-teal-700 hover:bg-teal-600 active:bg-teal-800 text-white font-semibold text-xs rounded-lg border border-teal-600 flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingAppsScript ? 'animate-spin' : ''}`} />
+              <span>{isSyncingAppsScript ? 'Menyinkronkan...' : 'Kirim Data ke Apps Script'}</span>
+            </button>
+
+            <a
+              href={`https://script.google.com/u/0/home/projects/${DEFAULT_APPS_SCRIPT_PROJECT_ID}/edit`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2.5 py-1.5 bg-teal-950 hover:bg-stone-900 text-teal-200 font-medium text-xs rounded-lg border border-teal-700 flex items-center gap-1 transition-colors"
+            >
+              <span>Proyek Apps Script</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+
+            <button
+              onClick={() => setShowAppsScriptModal(true)}
+              className="px-2.5 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 font-medium text-xs rounded-lg border border-stone-700 cursor-pointer transition-colors"
+            >
+              Kode GS & Web App URL
+            </button>
           </div>
         </div>
 
@@ -1135,6 +1222,96 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Ya, Sinkronkan Data</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Google Apps Script Setup & Code Modal */}
+      {showAppsScriptModal && (
+        <div className="fixed inset-0 z-70 bg-stone-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-stone-200 space-y-4 max-h-[90vh] overflow-y-auto text-stone-900">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-teal-800 text-white flex items-center justify-center font-bold text-xs">
+                  GS
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-stone-900">Integrasi Google Apps Script (GS)</h3>
+                  <p className="text-[11px] text-stone-500 font-mono">ID Proyek: {DEFAULT_APPS_SCRIPT_PROJECT_ID}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAppsScriptModal(false)}
+                className="text-stone-400 hover:text-stone-700 p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-stone-700 mb-1">
+                  URL Web App Google Apps Script (/exec):
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={appsScriptUrl}
+                    onChange={(e) => handleSaveAppsScriptUrl(e.target.value)}
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                    className="flex-1 font-mono text-xs border border-stone-300 rounded-lg px-3 py-2 bg-stone-50 focus:bg-white focus:outline-none focus:border-teal-700"
+                  />
+                  <button
+                    onClick={handleSyncAppsScript}
+                    disabled={isSyncingAppsScript}
+                    className="px-3 py-2 bg-teal-800 hover:bg-teal-900 text-white font-semibold rounded-lg shrink-0 cursor-pointer"
+                  >
+                    {isSyncingAppsScript ? 'Menguji...' : 'Uji Sinkronisasi'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-stone-500 mt-1">
+                  Endpoint ini menerima kiriman data pengaduan baru dari SI-PELKA Nagekeo secara otomatis.
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-stone-200">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-stone-800">Kode Google Apps Script (doPost Listener):</span>
+                  <button
+                    onClick={handleCopyScriptCode}
+                    className="px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold rounded flex items-center gap-1.5 cursor-pointer text-xs"
+                  >
+                    {copiedScript ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-stone-600" />}
+                    <span>{copiedScript ? 'Tersalin!' : 'Salin Kode GS'}</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-stone-600">
+                  Salin dan tempel kode berikut ke proyek Google Apps Script Anda (<code>Code.gs</code>):
+                </p>
+                <pre className="p-3 bg-stone-900 text-teal-300 font-mono text-[11px] rounded-xl overflow-x-auto max-h-56 leading-relaxed select-all">
+                  {APPS_SCRIPT_TEMPLATE_CODE}
+                </pre>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center pt-3 border-t border-stone-200">
+              <a
+                href={`https://script.google.com/u/0/home/projects/${DEFAULT_APPS_SCRIPT_PROJECT_ID}/edit`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold text-teal-800 hover:underline flex items-center gap-1"
+              >
+                <span>Buka Editor Project Apps Script</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+
+              <button
+                onClick={() => setShowAppsScriptModal(false)}
+                className="px-4 py-2 bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold rounded-lg cursor-pointer"
+              >
+                Selesai
               </button>
             </div>
           </div>

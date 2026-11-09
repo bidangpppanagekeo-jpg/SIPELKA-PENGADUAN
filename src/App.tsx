@@ -12,6 +12,7 @@ import { DisguiseView } from './components/DisguiseView';
 import { AdminPortal } from './components/AdminPortal';
 import { getAccessToken, initAuth } from './services/googleAuth';
 import { getSavedSpreadsheetInfo, appendComplaintToSpreadsheet } from './services/googleSheets';
+import { sendReportToAppsScript } from './services/appsScript';
 
 const OFFICIAL_DINAS_EMAIL = 'bidangpppanagekeo@gmail.com';
 
@@ -272,16 +273,17 @@ export default function App() {
     setSubmittedTicket(newReport);
     setFormStep(4); // Success step
 
-    // Auto-sync ke Google Sheets jika sesi petugas aktif & spreadsheet terkonfigurasi
+    // Auto-sync ke Google Apps Script Web App & Google Sheets
     (async () => {
       try {
+        await sendReportToAppsScript(newReport);
         const token = await getAccessToken();
         const activeSheet = getSavedSpreadsheetInfo();
         if (token && activeSheet?.id) {
           await appendComplaintToSpreadsheet(token, activeSheet.id, newReport);
         }
       } catch (err) {
-        console.warn('Auto-sync Google Sheets skipped:', err);
+        console.warn('Auto-sync Apps Script / Google Sheets skipped:', err);
       }
     })();
   };
