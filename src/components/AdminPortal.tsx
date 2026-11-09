@@ -26,6 +26,7 @@ interface AdminPortalProps {
   onAddOfficerNote: (ticketCode: string, summary: string, actionPlan: string, assignedUnit: string) => void;
   onOfficerSendMessage: (ticketCode: string, messageText: string) => void;
   onClose: () => void;
+  onOfficerLoginChange?: (email: string | null) => void;
 }
 
 const ALLOWED_OFFICER_EMAIL = 'bidangpppanagekeo@gmail.com';
@@ -35,7 +36,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onUpdateStatus,
   onAddOfficerNote,
   onOfficerSendMessage,
-  onClose
+  onClose,
+  onOfficerLoginChange
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [officerEmail, setOfficerEmail] = useState<string>('bidangpppanagekeo@gmail.com');
@@ -83,20 +85,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           setGoogleUser(user);
           setGoogleToken(token);
           setIsAuthenticated(true);
+          onOfficerLoginChange?.(ALLOWED_OFFICER_EMAIL);
         } else {
           setGoogleUser(null);
           setGoogleToken(null);
+          onOfficerLoginChange?.(null);
         }
       },
       () => {
         setGoogleUser(null);
         setGoogleToken(null);
+        onOfficerLoginChange?.(null);
       }
     );
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, []);
+  }, [onOfficerLoginChange]);
 
   // Google Sign In handler strictly for bidangpppanagekeo@gmail.com
   const handleConnectGoogle = async () => {
@@ -112,6 +117,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           setGoogleUser(null);
           setGoogleToken(null);
           setIsAuthenticated(false);
+          onOfficerLoginChange?.(null);
           setLoginError('Akses Ditolak: Fitur Petugas Dinas & Google Sheets HANYA terbuka untuk akun email dinas resmi terdaftar.');
           setSyncError('Akses Ditolak: Hanya akun email dinas resmi terdaftar yang dapat mengelola Google Sheets.');
           return;
@@ -121,6 +127,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         setGoogleToken(res.accessToken);
         setIsAuthenticated(true);
         setLoginError('');
+        onOfficerLoginChange?.(ALLOWED_OFFICER_EMAIL);
 
         const currentSheet = getSavedSpreadsheetInfo();
         if (!currentSheet) {
@@ -147,6 +154,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     await signOutFromGoogle();
     setGoogleUser(null);
     setGoogleToken(null);
+    onOfficerLoginChange?.(null);
     setSyncStatusMsg('Akun Google berhasil diputuskan.');
   };
 
@@ -202,12 +210,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     if (cleanEmail !== ALLOWED_OFFICER_EMAIL) {
       setLoginError('Akses Ditolak: Fitur Petugas Dinas HANYA terbuka untuk email dinas resmi yang terdaftar.');
       setIsAuthenticated(false);
+      onOfficerLoginChange?.(null);
       return;
     }
 
     if (pinCode === '1290' || pinCode === 'admin') {
       setIsAuthenticated(true);
       setLoginError('');
+      onOfficerLoginChange?.(ALLOWED_OFFICER_EMAIL);
     } else {
       setLoginError('Kode PIN Petugas tidak sah. Masukkan PIN resmi: 1290');
     }

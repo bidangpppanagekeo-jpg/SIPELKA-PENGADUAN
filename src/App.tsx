@@ -10,8 +10,10 @@ import { NAGEKEO_KECAMATAN_DATA, EMERGENCY_CONTACTS, CATEGORY_LABELS, INITIAL_RE
 import { ReportItem, CaseStatus, ReportCategory, NagekeoKecamatan, ConfidentialityLevel } from './types';
 import { DisguiseView } from './components/DisguiseView';
 import { AdminPortal } from './components/AdminPortal';
-import { getAccessToken } from './services/googleAuth';
+import { getAccessToken, initAuth } from './services/googleAuth';
 import { getSavedSpreadsheetInfo, appendComplaintToSpreadsheet } from './services/googleSheets';
+
+const OFFICIAL_DINAS_EMAIL = 'bidangpppanagekeo@gmail.com';
 
 export default function App() {
   // Load reports from localStorage with fallback
@@ -38,6 +40,38 @@ export default function App() {
   const [isDisguised, setIsDisguised] = useState<boolean>(false);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
+
+  // Dinas Officer Gate (Only active when bidangpppanagekeo@gmail.com is logged in)
+  const [currentOfficerEmail, setCurrentOfficerEmail] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('sipelka_officer_email') || null;
+    } catch {
+      return null;
+    }
+  });
+
+  const isDinasOfficer = currentOfficerEmail?.trim().toLowerCase() === OFFICIAL_DINAS_EMAIL;
+
+  useEffect(() => {
+    const unsubscribe = initAuth(
+      (user) => {
+        const email = user.email?.trim().toLowerCase() || null;
+        if (email === OFFICIAL_DINAS_EMAIL) {
+          setCurrentOfficerEmail(email);
+          try { localStorage.setItem('sipelka_officer_email', email); } catch {}
+        } else {
+          setCurrentOfficerEmail(null);
+          try { localStorage.removeItem('sipelka_officer_email'); } catch {}
+        }
+      },
+      () => {
+        // Keep current state
+      }
+    );
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   // Form Step State (1: Data Pelapor & Privasi -> 2: Data Korban & Waktu -> 3: Data Pelaku & Kejadian -> 4: Sukses)
   const [formStep, setFormStep] = useState<number>(1);
@@ -1209,14 +1243,24 @@ export default function App() {
               <span>Kontak Darurat</span>
             </button>
 
-            <button
-              onClick={() => setIsAdminOpen(true)}
-              className="px-3 py-2 bg-stone-800 hover:bg-stone-700 text-teal-300 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer min-h-[38px]"
-              title="Akses khusus petugas UPTD PPA Nagekeo"
-            >
-              <Lock className="w-3.5 h-3.5 text-teal-400" />
-              <span>Petugas Dinas</span>
-            </button>
+            {isDinasOfficer ? (
+              <button
+                onClick={() => setIsAdminOpen(true)}
+                className="px-3 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer min-h-[38px] shadow-sm"
+                title="Portal Manajemen Kasus UPTD PPA Nagekeo"
+              >
+                <Shield className="w-4 h-4 text-emerald-300" />
+                <span>Petugas Dinas (Aktif)</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsAdminOpen(true)}
+                className="p-2 text-stone-600 hover:text-stone-400 cursor-pointer rounded-lg transition-colors min-h-[38px] flex items-center justify-center"
+                title="Akses Masuk Petugas Dinas PMDP3A"
+              >
+                <Lock className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -1282,10 +1326,19 @@ export default function App() {
         </div>
       )}
 
-      {/* Admin Portal Modal (For bidangpppanagekeo@gmail.com) */}
+      {/* Admin Portal Modal */}
       {isAdminOpen && (
         <AdminPortal
           reports={reports}
+          onOfficerLoginChange={(email) => {
+            if (email === OFFICIAL_DINAS_EMAIL) {
+              setCurrentOfficerEmail(email);
+              try { localStorage.setItem('sipelka_officer_email', email); } catch {}
+            } else {
+              setCurrentOfficerEmail(null);
+              try { localStorage.removeItem('sipelka_officer_email'); } catch {}
+            }
+          }}
           onUpdateStatus={(ticketCode, newStatus) => {
             setReports((prev) =>
               prev.map((r) =>
