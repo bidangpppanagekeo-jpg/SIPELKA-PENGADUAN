@@ -3,7 +3,8 @@ import {
   Shield, PhoneCall, PlusCircle, Search, Lock, LogOut, EyeOff, 
   MapPin, CheckCircle2, Copy, Check, Send, AlertTriangle, 
   Camera, FileText, ChevronRight, ChevronLeft, ArrowLeft,
-  X, MessageCircle, Clock, HeartHandshake, User, RefreshCw
+  X, MessageCircle, Clock, HeartHandshake, User, Users, Calendar,
+  AlertCircle
 } from 'lucide-react';
 import { NAGEKEO_KECAMATAN_DATA, EMERGENCY_CONTACTS, CATEGORY_LABELS, INITIAL_REPORTS } from './data/mockData';
 import { ReportItem, CaseStatus, ReportCategory, NagekeoKecamatan, ConfidentialityLevel } from './types';
@@ -36,42 +37,58 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
 
-  // Form State
+  // Form Step State (1: Data Pelapor & Privasi -> 2: Data Korban & Waktu -> 3: Data Pelaku & Kejadian -> 4: Sukses)
   const [formStep, setFormStep] = useState<number>(1);
+
+  // 1. DATA PELAPOR
   const [confidentiality, setConfidentiality] = useState<ConfidentialityLevel>('rahasia');
   const [reporterName, setReporterName] = useState<string>('');
+  const [reporterRelationship, setReporterRelationship] = useState<string>('Korban Sendiri');
   const [reporterContact, setReporterContact] = useState<string>('');
-  const [victimType, setVictimType] = useState<string>('saya_sendiri');
-  
-  const [category, setCategory] = useState<ReportCategory>('kdrt_fisik');
+
+  // 2. DATA KORBAN
+  const [victimName, setVictimName] = useState<string>('');
+  const [victimGender, setVictimGender] = useState<'perempuan' | 'laki-laki'>('perempuan');
+  const [victimAge, setVictimAge] = useState<string>('');
   const [kecamatan, setKecamatan] = useState<NagekeoKecamatan>('Aesesa');
   const [desaKelurahan, setDesaKelurahan] = useState<string>('Danga');
-  const [incidentDetail, setIncidentDetail] = useState<string>('');
+  const [victimAddressDetail, setVictimAddressDetail] = useState<string>('');
+  const [incidentDate, setIncidentDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [incidentTime, setIncidentTime] = useState<string>('Siang / Sore Hari');
+  const [incidentPlace, setIncidentPlace] = useState<string>('Rumah Tinggal');
+
+  // 3. DATA PELAKU
+  const [perpetratorKnown, setPerpetratorKnown] = useState<boolean>(true);
+  const [perpetratorName, setPerpetratorName] = useState<string>('');
+  const [perpetratorAge, setPerpetratorAge] = useState<string>('');
+  const [perpetratorAddress, setPerpetratorAddress] = useState<string>('');
+  const [perpetratorRelationship, setPerpetratorRelationship] = useState<string>('Suami / Pasangan');
+
+  // BENTUK KEKERASAN & BANTUAN
+  const [category, setCategory] = useState<ReportCategory>('kdrt_fisik');
   const [incidentStory, setIncidentStory] = useState<string>('');
-  
   const [urgency, setUrgency] = useState<'darurat' | 'mendesak' | 'standar'>('mendesak');
   const [needVisum, setNeedVisum] = useState<boolean>(true);
   const [needSafeHouse, setNeedSafeHouse] = useState<boolean>(false);
   const [needLegal, setNeedLegal] = useState<boolean>(true);
   const [needCounseling, setNeedCounseling] = useState<boolean>(true);
-  
   const [evidenceName, setEvidenceName] = useState<string>('');
+
+  // Result & Tracker State
   const [submittedTicket, setSubmittedTicket] = useState<ReportItem | null>(null);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
-
-  // Tracker State
   const [searchTicket, setSearchTicket] = useState<string>('');
   const [searchPin, setSearchPin] = useState<string>('');
   const [foundReport, setFoundReport] = useState<ReportItem | null>(null);
   const [trackerError, setTrackerError] = useState<string>('');
   const [chatInput, setChatInput] = useState<string>('');
 
-  // Quick exit handler for safety
+  // Quick exit handler
   const handleQuickExit = () => {
     window.location.replace('https://www.google.com/search?q=cuaca+mbay+nagekeo+ntt');
   };
 
-  // Keyboard shortcut Esc for safety disguise
+  // Keyboard shortcut Esc
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsDisguised((prev) => !prev);
@@ -89,12 +106,47 @@ export default function App() {
     }
   };
 
-  // Submit pengaduan
+  // Synchronize reporterName and victimName if reporter is victim herself
+  const handleReporterRelationshipChange = (rel: string) => {
+    setReporterRelationship(rel);
+    if (rel === 'Korban Sendiri' && reporterName && !victimName) {
+      setVictimName(reporterName);
+    }
+  };
+
+  // Form Step Validation
+  const handleNextStep1 = () => {
+    if (!reporterContact.trim()) {
+      alert('Mohon masukkan Nomor Kontak / WhatsApp aktif agar petugas UPTD PPA mudah menghubungi Anda untuk konfirmasi.');
+      return;
+    }
+    setFormStep(2);
+  };
+
+  const handleNextStep2 = () => {
+    if (!victimName.trim()) {
+      alert('Mohon masukkan Nama Korban (atau nama inisial jika privasi).');
+      return;
+    }
+    setFormStep(3);
+  };
+
+  // Submit pengaduan lengkap
   const handleSubmitReport = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!incidentStory.trim()) {
+      alert('Mohon ceritakan uraian singkat kejadian yang dialami.');
+      return;
+    }
+
     const randomTicketNum = Math.floor(1000 + Math.random() * 9000);
     const randomPin = Math.floor(1000 + Math.random() * 9000).toString();
     const ticketCode = `PPA-NGK-${new Date().getFullYear()}-${randomTicketNum}`;
+
+    const fullVictimAddress = victimAddressDetail.trim()
+      ? `${victimAddressDetail.trim()}, Desa ${desaKelurahan}, Kec. ${kecamatan}`
+      : `Desa ${desaKelurahan}, Kec. ${kecamatan}, Kab. Nagekeo`;
 
     const newReport: ReportItem = {
       id: `rep_${Date.now()}`,
@@ -105,20 +157,32 @@ export default function App() {
       urgency,
       category,
       status: 'masuk',
-      reporterType: victimType === 'saya_sendiri' ? 'korban' : 'keluarga_kerabat',
       confidentiality,
-      reporterName: confidentiality === 'anonim' ? 'Anonim (Dirahasiakan)' : (reporterName.trim() || 'Warga Nagekeo'),
-      reporterContact: confidentiality === 'anonim' ? undefined : reporterContact.trim(),
-      victimName: confidentiality === 'anonim' ? 'Korban (Inisial Terlindungi)' : (victimType === 'saya_sendiri' ? (reporterName || 'Penyintas') : 'Anggota Keluarga / Anak'),
-      victimAgeGroup: 'dewasa_18_59',
-      victimGender: 'perempuan',
+
+      // 1. DATA KORBAN
+      victimName: confidentiality === 'anonim' ? `Korban (${victimName ? victimName.charAt(0) + '...' : 'Inisial'})` : victimName.trim(),
+      victimGender,
+      victimAge: victimAge.trim() || 'Dewasa',
+      victimAddress: fullVictimAddress,
       kecamatan,
       desaKelurahan,
-      incidentLocationDetail: incidentDetail || `Desa ${desaKelurahan}, Kec. ${kecamatan}`,
-      incidentDate: new Date().toISOString().split('T')[0],
-      incidentDescription: incidentStory,
-      perpetratorRelationship: 'suami_istri',
-      perpetratorNameMasked: 'Pihak Terlapor',
+      incidentDate,
+      incidentTime,
+      incidentPlace,
+      incidentDescription: incidentStory.trim(),
+
+      // 2. DATA PELAKU
+      perpetratorKnown,
+      perpetratorName: perpetratorKnown ? (perpetratorName.trim() || 'Pihak Terlapor') : 'Tidak Diketahui',
+      perpetratorAge: perpetratorKnown ? (perpetratorAge.trim() || '-') : '-',
+      perpetratorAddress: perpetratorKnown ? (perpetratorAddress.trim() || '-') : '-',
+      perpetratorRelationship: perpetratorKnown ? perpetratorRelationship : 'Orang Tidak Dikenal',
+
+      // 3. DATA PELAPOR
+      reporterName: confidentiality === 'anonim' ? 'Pelapor (Dirahasiakan)' : (reporterName.trim() || 'Warga Nagekeo'),
+      reporterRelationship,
+      reporterContact: reporterContact.trim(),
+
       servicesNeeded: {
         medisVisum: needVisum,
         rumahAman: needSafeHouse,
@@ -141,8 +205,8 @@ export default function App() {
           id: `note_${Date.now()}`,
           officerName: 'Sistem Penerimaan UPTD PPA',
           date: new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }),
-          summary: `Pengaduan baru diterima via SI-PELKA Nagekeo (${urgency.toUpperCase()}). Menunggu telaah tim penjangkauan.`,
-          actionPlan: 'Penjadwalan verifikasi awal dan koordinasi tim pendamping Dinas PMDP3A.',
+          summary: `Pengaduan lengkap diterima via SI-PELKA Nagekeo (${urgency.toUpperCase()}). Menunggu verifikasi tim reaksi cepat.`,
+          actionPlan: `Konfirmasi ke pelapor (${reporterContact}) dan penyiapan rujukan kasus.`,
           assignedUnit: 'UPTD PPA Kabupaten Nagekeo'
         }
       ],
@@ -151,7 +215,7 @@ export default function App() {
 
     setReports([newReport, ...reports]);
     setSubmittedTicket(newReport);
-    setFormStep(3); // Success step
+    setFormStep(4); // Success step
   };
 
   // Search case tracker
@@ -204,9 +268,15 @@ export default function App() {
   const handleResetForm = () => {
     setFormStep(1);
     setSubmittedTicket(null);
-    setIncidentStory('');
     setReporterName('');
     setReporterContact('');
+    setVictimName('');
+    setVictimAge('');
+    setVictimAddressDetail('');
+    setPerpetratorName('');
+    setPerpetratorAge('');
+    setPerpetratorAddress('');
+    setIncidentStory('');
     setEvidenceName('');
   };
 
@@ -270,7 +340,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* Segmented Control (Only 2 Main Tabs: Buat Laporan vs Cek Status) */}
+        {/* Segmented Control (Buat Laporan vs Cek Status) */}
         <div className="px-4 pb-3">
           <div className="grid grid-cols-2 p-1 bg-teal-950/60 rounded-xl gap-1 border border-teal-800/60">
             <button
@@ -282,7 +352,7 @@ export default function App() {
               }`}
             >
               <PlusCircle className="w-4 h-4" />
-              <span>Buat Pengaduan</span>
+              <span>Formulir Pengaduan</span>
             </button>
 
             <button
@@ -300,279 +370,534 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Container - Optimized for Single-Handed Mobile Use */}
+      {/* Main Container - Optimized for Mobile Use */}
       <main className="flex-1 max-w-lg w-full mx-auto p-4 space-y-4">
         {/* ================= VIEW 1: FORMULIR PENGADUAN ================= */}
         {activeTab === 'lapor' && (
           <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
-            {/* Step 1: Informasi Kejadian & Wilayah Nagekeo */}
-            {formStep === 1 && (
-              <div className="p-4 sm:p-5 space-y-5">
-                {/* Privacy Banner */}
-                <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 flex items-start gap-2.5">
-                  <Shield className="w-5 h-5 text-teal-800 shrink-0 mt-0.5" />
-                  <div className="text-xs text-teal-900 leading-relaxed">
-                    <span className="font-bold block">100% Rahasia & Aman</span>
-                    Ceritakan masalah Anda. Identitas dan keselamatan Anda dilindungi penuh oleh UU TPKS dan Tim UPTD PPA Nagekeo.
-                  </div>
+            {/* Step Progress Bar (Only during steps 1-3) */}
+            {formStep < 4 && (
+              <div className="bg-stone-50 border-b border-stone-200 px-4 py-2.5 flex items-center justify-between text-[11px] text-stone-600">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${formStep === 1 ? 'bg-teal-800 text-white' : 'bg-stone-200 text-stone-700'}`}>1</span>
+                  <span className={formStep === 1 ? 'font-bold text-teal-900' : ''}>Data Pelapor</span>
                 </div>
-
-                {/* Siapa Anda */}
-                <div>
-                  <label className="block text-xs font-bold text-stone-800 mb-2">
-                    Siapa yang Mengalami Kekerasan?
-                  </label>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setVictimType('saya_sendiri')}
-                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all min-h-[48px] touch-manipulation ${
-                        victimType === 'saya_sendiri'
-                          ? 'border-teal-700 bg-teal-50 text-teal-950 font-bold ring-1 ring-teal-700'
-                          : 'border-stone-200 bg-stone-50 text-stone-700'
-                      }`}
-                    >
-                      Saya Sendiri (Korban)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVictimType('orang_lain')}
-                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all min-h-[48px] touch-manipulation ${
-                        victimType === 'orang_lain'
-                          ? 'border-teal-700 bg-teal-50 text-teal-950 font-bold ring-1 ring-teal-700'
-                          : 'border-stone-200 bg-stone-50 text-stone-700'
-                      }`}
-                    >
-                      Anak / Kerabat / Tetangga
-                    </button>
-                  </div>
+                <span className="text-stone-300">/</span>
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${formStep === 2 ? 'bg-teal-800 text-white' : 'bg-stone-200 text-stone-700'}`}>2</span>
+                  <span className={formStep === 2 ? 'font-bold text-teal-900' : ''}>Data Korban</span>
                 </div>
-
-                {/* Bentuk Kekerasan */}
-                <div>
-                  <label className="block text-xs font-bold text-stone-800 mb-2">
-                    Bentuk Kekerasan yang Dialami:
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {Object.entries(CATEGORY_LABELS).map(([key, item]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setCategory(key as ReportCategory)}
-                        className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all min-h-[50px] touch-manipulation flex flex-col justify-center ${
-                          category === key
-                            ? 'border-teal-700 bg-teal-50 text-teal-950 font-bold ring-1 ring-teal-700'
-                            : 'border-stone-200 bg-stone-50/50 hover:bg-stone-50 text-stone-700'
-                        }`}
-                      >
-                        <span className="text-xs leading-snug">{item.label}</span>
-                      </button>
-                    ))}
-                  </div>
+                <span className="text-stone-300">/</span>
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${formStep === 3 ? 'bg-teal-800 text-white' : 'bg-stone-200 text-stone-700'}`}>3</span>
+                  <span className={formStep === 3 ? 'font-bold text-teal-900' : ''}>Data Pelaku & Kasus</span>
                 </div>
-
-                {/* Lokasi di Nagekeo */}
-                <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200 space-y-3">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-stone-900">
-                    <MapPin className="w-4 h-4 text-teal-800" />
-                    <span>Lokasi Kejadian di Kabupaten Nagekeo:</span>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-medium text-stone-600 mb-1">
-                      Kecamatan:
-                    </label>
-                    <select
-                      value={kecamatan}
-                      onChange={(e) => handleKecamatanChange(e.target.value as NagekeoKecamatan)}
-                      className="w-full text-base sm:text-xs border border-stone-300 rounded-lg p-2.5 bg-white font-medium focus:border-teal-700 focus:outline-none min-h-[44px]"
-                    >
-                      {Object.keys(NAGEKEO_KECAMATAN_DATA).map((kec) => (
-                        <option key={kec} value={kec}>
-                          Kecamatan {kec}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-medium text-stone-600 mb-1">
-                      Desa / Kelurahan:
-                    </label>
-                    <select
-                      value={desaKelurahan}
-                      onChange={(e) => setDesaKelurahan(e.target.value)}
-                      className="w-full text-base sm:text-xs border border-stone-300 rounded-lg p-2.5 bg-white font-medium focus:border-teal-700 focus:outline-none min-h-[44px]"
-                    >
-                      {NAGEKEO_KECAMATAN_DATA[kecamatan]?.map((desa) => (
-                        <option key={desa} value={desa}>
-                          Desa / Kel. {desa}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Cerita Singkat */}
-                <div>
-                  <label className="block text-xs font-bold text-stone-800 mb-1">
-                    Ceritakan Singkat Apa yang Terjadi:
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={incidentStory}
-                    onChange={(e) => setIncidentStory(e.target.value)}
-                    placeholder="Contoh: Terjadi pemukulan, ancaman, atau pelecehan di rumah tinggal. Korban merasa ketakutan..."
-                    className="w-full text-base sm:text-xs border border-stone-300 rounded-xl p-3 focus:border-teal-700 focus:outline-none leading-relaxed bg-white"
-                  />
-                </div>
-
-                {/* Tombol Lanjut ke Langkah 2 */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!incidentStory.trim()) {
-                      alert('Mohon tuliskan cerita singkat kejadian terlebih dahulu.');
-                      return;
-                    }
-                    setFormStep(2);
-                  }}
-                  className="w-full py-3.5 bg-teal-800 hover:bg-teal-900 active:bg-teal-950 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[48px] touch-manipulation"
-                >
-                  <span>Lanjutkan: Privasi & Bantuan</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
               </div>
             )}
 
-            {/* Step 2: Privasi, Bantuan & Bukti */}
-            {formStep === 2 && (
-              <div className="p-4 sm:p-5 space-y-5">
-                {/* Pilihan Kerahasiaan */}
+            {/* ---------- LANGKAH 1: DATA PELAPOR ---------- */}
+            {formStep === 1 && (
+              <div className="p-4 sm:p-5 space-y-4">
+                <div className="border-b border-stone-100 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-teal-900">
+                    <User className="w-4 h-4 text-teal-800" />
+                    <span>BAGIAN 1: DATA PELAPOR</span>
+                  </div>
+                  <p className="text-[11px] text-stone-500">
+                    Informasi pihak yang menyampaikan pengaduan agar petugas dapat melakukan konfirmasi.
+                  </p>
+                </div>
+
+                {/* Hubungan Pelapor dengan Korban */}
                 <div>
-                  <label className="block text-xs font-bold text-stone-800 mb-2">
-                    Pilihan Kerahasiaan Nama Anda:
+                  <label className="block text-xs font-semibold text-stone-800 mb-1.5">
+                    Hubungan Anda dengan Korban:
+                  </label>
+                  <select
+                    value={reporterRelationship}
+                    onChange={(e) => handleReporterRelationshipChange(e.target.value)}
+                    className="w-full text-base sm:text-xs border border-stone-300 rounded-xl p-2.5 bg-white font-medium focus:border-teal-700 focus:outline-none min-h-[44px]"
+                  >
+                    <option value="Korban Sendiri">Saya Sendiri (Korban)</option>
+                    <option value="Orang Tua / Wali">Orang Tua / Wali Korban</option>
+                    <option value="Saudara / Kerabat">Saudara Kandung / Kerabat Keluarga</option>
+                    <option value="Tetangga / Warga">Tetangga / Warga Sekitar</option>
+                    <option value="Guru / Pihak Sekolah">Guru / Pihak Sekolah</option>
+                    <option value="Kader Posyandu / Desa">Kader Desa / Posyandu</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </div>
+
+                {/* Nama Pelapor */}
+                <div>
+                  <label className="block text-xs font-semibold text-stone-800 mb-1">
+                    Nama Pelapor:
+                  </label>
+                  <input
+                    type="text"
+                    value={reporterName}
+                    onChange={(e) => setReporterName(e.target.value)}
+                    placeholder="Masukkan nama lengkap / panggilan Anda"
+                    className="w-full text-base sm:text-xs border border-stone-300 rounded-xl p-2.5 bg-white focus:outline-none focus:border-teal-700 min-h-[44px]"
+                  />
+                </div>
+
+                {/* Nomor Kontak yang Mudah Dihubungi */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-stone-800">
+                      Nomor Kontak / WhatsApp Aktif: <span className="text-rose-600">*</span>
+                    </label>
+                    <span className="text-[10px] text-teal-800 font-medium">Wajib diisi</span>
+                  </div>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    value={reporterContact}
+                    onChange={(e) => setReporterContact(e.target.value)}
+                    placeholder="Contoh: 0812-3456-7890 (Mudah dihubungi petugas)"
+                    className="w-full text-base sm:text-xs border border-stone-300 rounded-xl p-2.5 bg-white focus:outline-none focus:border-teal-700 min-h-[44px]"
+                    required
+                  />
+                  <p className="text-[10px] text-stone-500 mt-1">
+                    Petugas UPTD PPA Dinas PMDP3A akan menghubungi nomor ini untuk konfirmasi awal secara rahasia.
+                  </p>
+                </div>
+
+                {/* Kerahasiaan Identitas */}
+                <div className="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2">
+                  <label className="block text-xs font-semibold text-stone-800">
+                    Tingkat Kerahasiaan Identitas:
                   </label>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <button
                       type="button"
                       onClick={() => setConfidentiality('rahasia')}
-                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all min-h-[52px] touch-manipulation flex flex-col justify-center ${
+                      className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all min-h-[44px] ${
                         confidentiality === 'rahasia'
                           ? 'border-teal-700 bg-teal-50 text-teal-950 font-bold ring-1 ring-teal-700'
-                          : 'border-stone-200 bg-stone-50 text-stone-700'
+                          : 'border-stone-200 bg-white text-stone-700'
                       }`}
                     >
-                      <span className="font-bold flex items-center gap-1">
-                        <Lock className="w-3.5 h-3.5 text-teal-800" /> Rahasia (Resmi)
-                      </span>
-                      <span className="text-[10px] text-stone-500 font-normal">Hanya untuk Tim P3A</span>
+                      <span className="block font-bold">🔒 Rahasia (Resmi)</span>
+                      <span className="text-[10px] text-stone-500 font-normal">Hanya tim UPTD PPA</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setConfidentiality('anonim')}
-                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all min-h-[52px] touch-manipulation flex flex-col justify-center ${
+                      className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all min-h-[44px] ${
                         confidentiality === 'anonim'
                           ? 'border-teal-700 bg-teal-50 text-teal-950 font-bold ring-1 ring-teal-700'
-                          : 'border-stone-200 bg-stone-50 text-stone-700'
+                          : 'border-stone-200 bg-white text-stone-700'
                       }`}
                     >
-                      <span className="font-bold flex items-center gap-1">
-                        <Shield className="w-3.5 h-3.5 text-teal-800" /> Anonim Total
-                      </span>
-                      <span className="text-[10px] text-stone-500 font-normal">Tanpa nama & kontak</span>
+                      <span className="block font-bold">🛡️ Samarkan Nama</span>
+                      <span className="text-[10px] text-stone-500 font-normal">Nama disamarkan</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Kontak jika bukan anonim */}
-                {confidentiality !== 'anonim' && (
-                  <div className="space-y-3 bg-stone-50 p-3.5 rounded-xl border border-stone-200 text-xs">
+                {/* Tombol Lanjut ke Langkah 2 */}
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleNextStep1}
+                    className="w-full py-3.5 bg-teal-800 hover:bg-teal-900 active:bg-teal-950 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[48px] touch-manipulation"
+                  >
+                    <span>Lanjut ke Data Korban (Langkah 2)</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ---------- LANGKAH 2: DATA KORBAN & WAKTU KEJADIAN ---------- */}
+            {formStep === 2 && (
+              <div className="p-4 sm:p-5 space-y-4">
+                <div className="border-b border-stone-100 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-teal-900">
+                    <HeartHandshake className="w-4 h-4 text-teal-800" />
+                    <span>BAGIAN 2: DATA KORBAN & WAKTU KEJADIAN</span>
+                  </div>
+                  <p className="text-[11px] text-stone-500">
+                    Informasi mengenai korban yang mengalami kekerasan dan tempat terjadinya peristiwa.
+                  </p>
+                </div>
+
+                {/* Nama Korban */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-stone-800">
+                      Nama Korban: <span className="text-rose-600">*</span>
+                    </label>
+                    <span className="text-[10px] text-stone-400">Bisa inisial jika privasi</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={victimName}
+                    onChange={(e) => setVictimName(e.target.value)}
+                    placeholder="Masukkan nama korban (contoh: Maria T. / Inisial M.)"
+                    className="w-full text-base sm:text-xs border border-stone-300 rounded-xl p-2.5 bg-white focus:outline-none focus:border-teal-700 min-h-[44px]"
+                    required
+                  />
+                </div>
+
+                {/* Jenis Kelamin & Usia */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-800 mb-1">
+                      Jenis Kelamin Korban:
+                    </label>
+                    <select
+                      value={victimGender}
+                      onChange={(e) => setVictimGender(e.target.value as 'perempuan' | 'laki-laki')}
+                      className="w-full text-base sm:text-xs border border-stone-300 rounded-xl p-2.5 bg-white font-medium focus:border-teal-700 focus:outline-none min-h-[44px]"
+                    >
+                      <option value="perempuan">Perempuan</option>
+                      <option value="laki-laki">Laki-Laki (Anak)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-800 mb-1">
+                      Usia Korban (Tahun):
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={victimAge}
+                      onChange={(e) => setVictimAge(e.target.value)}
+                      placeholder="Contoh: 15 / 32"
+                      className="w-full text-base sm:text-xs border border-stone-300 rounded-xl p-2.5 bg-white focus:outline-none focus:border-teal-700 min-h-[44px]"
+                    />
+                  </div>
+                </div>
+
+                {/* Wilayah / Alamat Korban di Kabupaten Nagekeo */}
+                <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200 space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-stone-900">
+                    <MapPin className="w-4 h-4 text-teal-800" />
+                    <span>Alamat Korban di Kabupaten Nagekeo:</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block font-semibold text-stone-700 mb-1">
-                        Nama / Inisial Anda:
+                      <label className="block text-[11px] font-medium text-stone-600 mb-1">
+                        Kecamatan:
+                      </label>
+                      <select
+                        value={kecamatan}
+                        onChange={(e) => handleKecamatanChange(e.target.value as NagekeoKecamatan)}
+                        className="w-full text-base sm:text-xs border border-stone-300 rounded-lg p-2.5 bg-white font-medium focus:border-teal-700 focus:outline-none min-h-[44px]"
+                      >
+                        {Object.keys(NAGEKEO_KECAMATAN_DATA).map((kec) => (
+                          <option key={kec} value={kec}>
+                            Kec. {kec}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-stone-600 mb-1">
+                        Desa / Kelurahan:
+                      </label>
+                      <select
+                        value={desaKelurahan}
+                        onChange={(e) => setDesaKelurahan(e.target.value)}
+                        className="w-full text-base sm:text-xs border border-stone-300 rounded-lg p-2.5 bg-white font-medium focus:border-teal-700 focus:outline-none min-h-[44px]"
+                      >
+                        {NAGEKEO_KECAMATAN_DATA[kecamatan]?.map((desa) => (
+                          <option key={desa} value={desa}>
+                            Desa {desa}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-medium text-stone-600 mb-1">
+                      Detail Alamat / Dusun / RT / RW:
+                    </label>
+                    <input
+                      type="text"
+                      value={victimAddressDetail}
+                      onChange={(e) => setVictimAddressDetail(e.target.value)}
+                      placeholder="Contoh: Dusun II, RT 03 dekat Balai Desa / Pasar"
+                      className="w-full text-base sm:text-xs border border-stone-300 rounded-lg p-2.5 bg-white focus:outline-none focus:border-teal-700 min-h-[44px]"
+                    />
+                  </div>
+                </div>
+
+                {/* Waktu dan Tempat Kejadian */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-stone-900">
+                    <Calendar className="w-4 h-4 text-teal-800" />
+                    <span>Waktu dan Tempat Kejadian:</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-medium text-stone-600 mb-1">
+                        Tanggal Kejadian:
+                      </label>
+                      <input
+                        type="date"
+                        value={incidentDate}
+                        onChange={(e) => setIncidentDate(e.target.value)}
+                        className="w-full text-base sm:text-xs border border-stone-300 rounded-lg p-2.5 bg-white font-mono focus:outline-none focus:border-teal-700 min-h-[44px]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-stone-600 mb-1">
+                        Perkiraan Waktu / Jam:
                       </label>
                       <input
                         type="text"
-                        value={reporterName}
-                        onChange={(e) => setReporterName(e.target.value)}
-                        placeholder="Contoh: Maria / Ibu M."
+                        value={incidentTime}
+                        onChange={(e) => setIncidentTime(e.target.value)}
+                        placeholder="Contoh: Pagi / 21:00 WITA"
                         className="w-full text-base sm:text-xs border border-stone-300 rounded-lg p-2.5 bg-white focus:outline-none focus:border-teal-700 min-h-[44px]"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-medium text-stone-600 mb-1">
+                      Tempat Kejadian:
+                    </label>
+                    <input
+                      type="text"
+                      value={incidentPlace}
+                      onChange={(e) => setIncidentPlace(e.target.value)}
+                      placeholder="Contoh: Rumah tinggal / Kebun / Jalan umum / Sekolah"
+                      className="w-full text-base sm:text-xs border border-stone-300 rounded-lg p-2.5 bg-white focus:outline-none focus:border-teal-700 min-h-[44px]"
+                    />
+                  </div>
+                </div>
+
+                {/* Tombol Navigasi */}
+                <div className="flex gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormStep(1)}
+                    className="w-1/3 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-xl transition-colors flex items-center justify-center gap-1 cursor-pointer min-h-[48px] touch-manipulation"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Kembali</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleNextStep2}
+                    className="w-2/3 py-3 bg-teal-800 hover:bg-teal-900 active:bg-teal-950 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[48px] touch-manipulation"
+                  >
+                    <span>Lanjut ke Data Pelaku & Kasus</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ---------- LANGKAH 3: DATA PELAKU & KASUS ---------- */}
+            {formStep === 3 && (
+              <div className="p-4 sm:p-5 space-y-4">
+                <div className="border-b border-stone-100 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-teal-900">
+                    <AlertTriangle className="w-4 h-4 text-rose-600" />
+                    <span>BAGIAN 3: DATA PELAKU (JIKA DIKETAHUI) & URAIAN KASUS</span>
+                  </div>
+                  <p className="text-[11px] text-stone-500">
+                    Identitas terduga pelaku (jika Anda mengenalnya) serta rincian bantuan yang dibutuhkan.
+                  </p>
+                </div>
+
+                {/* Pelaku Diketahui atau Tidak */}
+                <div className="flex items-center justify-between bg-stone-50 p-3 rounded-xl border border-stone-200">
+                  <span className="text-xs font-semibold text-stone-800">Apakah Pelaku Dikenali / Diketahui?</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPerpetratorKnown(true)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
+                        perpetratorKnown ? 'bg-teal-800 text-white' : 'bg-white border border-stone-300 text-stone-600'
+                      }`}
+                    >
+                      Ya, Dikenal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPerpetratorKnown(false)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
+                        !perpetratorKnown ? 'bg-teal-800 text-white' : 'bg-white border border-stone-300 text-stone-600'
+                      }`}
+                    >
+                      Tidak Kenal
+                    </button>
+                  </div>
+                </div>
+
+                {/* Form Data Pelaku jika Dikenal */}
+                {perpetratorKnown && (
+                  <div className="space-y-3 bg-stone-50 p-3.5 rounded-xl border border-stone-200 text-xs">
                     <div>
                       <label className="block font-semibold text-stone-700 mb-1">
-                        Nomor HP / WhatsApp yang Aman Dihubungi:
+                        Nama Terduga Pelaku:
                       </label>
                       <input
-                        type="tel"
-                        value={reporterContact}
-                        onChange={(e) => setReporterContact(e.target.value)}
-                        placeholder="0812-xxxx-xxxx"
+                        type="text"
+                        value={perpetratorName}
+                        onChange={(e) => setPerpetratorName(e.target.value)}
+                        placeholder="Masukkan nama / panggilan pelaku"
+                        className="w-full text-base sm:text-xs border border-stone-300 rounded-lg p-2.5 bg-white focus:outline-none focus:border-teal-700 min-h-[44px]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block font-semibold text-stone-700 mb-1">
+                          Perkiraan Usia Pelaku:
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={perpetratorAge}
+                          onChange={(e) => setPerpetratorAge(e.target.value)}
+                          placeholder="Contoh: 35 tahun"
+                          className="w-full text-base sm:text-xs border border-stone-300 rounded-lg p-2.5 bg-white focus:outline-none focus:border-teal-700 min-h-[44px]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-stone-700 mb-1">
+                          Hubungan dengan Korban:
+                        </label>
+                        <select
+                          value={perpetratorRelationship}
+                          onChange={(e) => setPerpetratorRelationship(e.target.value)}
+                          className="w-full text-base sm:text-xs border border-stone-300 rounded-lg p-2.5 bg-white font-medium focus:border-teal-700 focus:outline-none min-h-[44px]"
+                        >
+                          <option value="Suami / Pasangan">Suami / Pasangan</option>
+                          <option value="Orang Tua / Wali">Orang Tua / Wali</option>
+                          <option value="Saudara / Kerabat">Saudara / Kerabat</option>
+                          <option value="Tetangga / Kenalan">Tetangga / Kenalan</option>
+                          <option value="Majikan / Atasan">Majikan / Atasan</option>
+                          <option value="Lainnya">Lainnya</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-stone-700 mb-1">
+                        Alamat Pelaku (jika diketahui):
+                      </label>
+                      <input
+                        type="text"
+                        value={perpetratorAddress}
+                        onChange={(e) => setPerpetratorAddress(e.target.value)}
+                        placeholder="Contoh: Desa / Kelurahan tempat tinggal pelaku"
                         className="w-full text-base sm:text-xs border border-stone-300 rounded-lg p-2.5 bg-white focus:outline-none focus:border-teal-700 min-h-[44px]"
                       />
                     </div>
                   </div>
                 )}
 
-                {/* Kebutuhan Layanan Terpenting */}
+                {/* Bentuk Kekerasan */}
+                <div>
+                  <label className="block text-xs font-bold text-stone-800 mb-1.5">
+                    Bentuk Kekerasan yang Terjadi:
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value as ReportCategory)}
+                    className="w-full text-base sm:text-xs border border-stone-300 rounded-xl p-2.5 bg-white font-medium focus:border-teal-700 focus:outline-none min-h-[44px]"
+                  >
+                    {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Uraian Singkat Kejadian */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-stone-800">
+                      Ceritakan Kronologi Singkat Kejadian: <span className="text-rose-600">*</span>
+                    </label>
+                    <span className="text-[10px] text-teal-800 font-medium">Wajib diisi</span>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={incidentStory}
+                    onChange={(e) => setIncidentStory(e.target.value)}
+                    placeholder="Jelaskan apa yang terjadi, apa ancaman yang dihadapi, luka fisik yang dialami, dsb."
+                    className="w-full text-base sm:text-xs border border-stone-300 rounded-xl p-3 focus:border-teal-700 focus:outline-none leading-relaxed bg-white"
+                    required
+                  />
+                </div>
+
+                {/* Layanan yang Dibutuhkan Segera */}
                 <div className="space-y-2">
                   <label className="block text-xs font-bold text-stone-800">
-                    Bantuan yang Dibutuhkan Segera:
+                    Bantuan Layanan yang Dibutuhkan Korban:
                   </label>
-                  <div className="space-y-2 text-xs">
-                    <label className="flex items-center gap-3 p-3 rounded-xl border border-stone-200 hover:bg-stone-50 cursor-pointer min-h-[46px] touch-manipulation">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <label className="flex items-center gap-2 p-2.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 cursor-pointer min-h-[44px]">
                       <input
                         type="checkbox"
                         checked={needVisum}
                         onChange={(e) => setNeedVisum(e.target.checked)}
-                        className="w-4 h-4 text-teal-800 rounded focus:ring-teal-700"
+                        className="rounded text-teal-800 focus:ring-teal-700"
                       />
-                      <span className="font-medium text-stone-900">Pemeriksaan Medis & Visum RSUD Aeramo</span>
+                      <span className="leading-tight">Visum RSUD Aeramo</span>
                     </label>
 
-                    <label className="flex items-center gap-3 p-3 rounded-xl border border-stone-200 hover:bg-stone-50 cursor-pointer min-h-[46px] touch-manipulation">
+                    <label className="flex items-center gap-2 p-2.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 cursor-pointer min-h-[44px]">
                       <input
                         type="checkbox"
                         checked={needSafeHouse}
                         onChange={(e) => setNeedSafeHouse(e.target.checked)}
-                        className="w-4 h-4 text-teal-800 rounded focus:ring-teal-700"
+                        className="rounded text-teal-800 focus:ring-teal-700"
                       />
-                      <span className="font-medium text-stone-900">Tempat Tinggal Aman (Rumah Aman UPTD PPA)</span>
+                      <span className="leading-tight">Rumah Aman (Safe House)</span>
                     </label>
 
-                    <label className="flex items-center gap-3 p-3 rounded-xl border border-stone-200 hover:bg-stone-50 cursor-pointer min-h-[46px] touch-manipulation">
+                    <label className="flex items-center gap-2 p-2.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 cursor-pointer min-h-[44px]">
                       <input
                         type="checkbox"
                         checked={needLegal}
                         onChange={(e) => setNeedLegal(e.target.checked)}
-                        className="w-4 h-4 text-teal-800 rounded focus:ring-teal-700"
+                        className="rounded text-teal-800 focus:ring-teal-700"
                       />
-                      <span className="font-medium text-stone-900">Perlindungan Polisi (Unit PPA Polres Nagekeo)</span>
+                      <span className="leading-tight">Pendampingan Polisi</span>
                     </label>
 
-                    <label className="flex items-center gap-3 p-3 rounded-xl border border-stone-200 hover:bg-stone-50 cursor-pointer min-h-[46px] touch-manipulation">
+                    <label className="flex items-center gap-2 p-2.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 cursor-pointer min-h-[44px]">
                       <input
                         type="checkbox"
                         checked={needCounseling}
                         onChange={(e) => setNeedCounseling(e.target.checked)}
-                        className="w-4 h-4 text-teal-800 rounded focus:ring-teal-700"
+                        className="rounded text-teal-800 focus:ring-teal-700"
                       />
-                      <span className="font-medium text-stone-900">Konseling & Pendampingan Psikologis</span>
+                      <span className="leading-tight">Konseling Psikologis</span>
                     </label>
                   </div>
                 </div>
 
-                {/* Upload Foto Bukti (Opsional) */}
+                {/* Upload Foto / Bukti */}
                 <div>
                   <label className="block text-xs font-bold text-stone-800 mb-1">
-                    Foto Bukti / Luka (Opsional):
+                    Lampiran Foto Bukti / Luka (Opsional):
                   </label>
                   <div className="border border-dashed border-stone-300 rounded-xl p-3 flex items-center justify-between bg-stone-50">
                     <div className="flex items-center gap-2 text-xs text-stone-600 truncate">
-                      <Camera className="w-5 h-5 text-stone-400 shrink-0" />
-                      <span className="truncate">{evidenceName || 'Pilih foto jika ada bukti fisik/chat'}</span>
+                      <Camera className="w-4 h-4 text-stone-400 shrink-0" />
+                      <span className="truncate">{evidenceName || 'Ambil foto dari kamera / galeri HP'}</span>
                     </div>
                     <label className="px-3 py-1.5 bg-white border border-stone-300 hover:bg-stone-100 rounded-lg text-xs font-medium cursor-pointer shrink-0 min-h-[38px] flex items-center">
                       <span>Pilih Foto</span>
@@ -590,15 +915,15 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Tombol Aksi Bawah */}
+                {/* Tombol Navigasi Akhir */}
                 <div className="flex gap-2.5 pt-2">
                   <button
                     type="button"
-                    onClick={() => setFormStep(1)}
+                    onClick={() => setFormStep(2)}
                     className="w-1/3 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-xl transition-colors flex items-center justify-center gap-1 cursor-pointer min-h-[48px] touch-manipulation"
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    <span>Kembali</span>
+                    <span>Sebelumnya</span>
                   </button>
 
                   <button
@@ -607,14 +932,14 @@ export default function App() {
                     className="w-2/3 py-3 bg-teal-800 hover:bg-teal-900 active:bg-teal-950 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[48px] touch-manipulation"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Kirim Pengaduan Sekarang</span>
+                    <span>Kirim Pengaduan Lengkap</span>
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Step 3: Sukses & Kode Tiket */}
-            {formStep === 3 && submittedTicket && (
+            {/* ---------- LANGKAH 4: BUKTI LAPOR SUKSES ---------- */}
+            {formStep === 4 && submittedTicket && (
               <div className="p-5 text-center space-y-4">
                 <div className="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle2 className="w-7 h-7" />
@@ -622,19 +947,22 @@ export default function App() {
 
                 <div>
                   <h3 className="text-base font-bold text-stone-900">
-                    Pengaduan Berhasil Terkirim!
+                    Pengaduan Anda Berhasil Terkirim!
                   </h3>
                   <p className="text-xs text-stone-600 mt-0.5">
-                    Laporan telah diterima Tim Reaksi Cepat UPTD PPA Dinas PMDP3A Kabupaten Nagekeo.
+                    Data lengkap korban, pelaku, dan pelapor telah tercatat di UPTD PPA Dinas PMDP3A Kabupaten Nagekeo.
                   </p>
                 </div>
 
                 {/* Tiket Box */}
-                <div className="bg-stone-50 border-2 border-dashed border-teal-800 rounded-2xl p-4 text-left space-y-2">
-                  <div className="text-[11px] text-stone-500">SIMPAN BUKTI LAPOR INI:</div>
+                <div className="bg-stone-50 border-2 border-dashed border-teal-800 rounded-2xl p-4 text-left space-y-2.5">
+                  <div className="text-[11px] font-bold text-teal-900 border-b border-stone-200 pb-1.5 flex items-center justify-between">
+                    <span>BUKTI LAPOR PENGADUAN</span>
+                    <span className="font-mono text-stone-500 font-normal">{new Date(submittedTicket.createdAt).toLocaleDateString('id-ID')}</span>
+                  </div>
                   
                   <div>
-                    <span className="text-[11px] text-stone-500 block">Kode Tiket Pengaduan:</span>
+                    <span className="text-[11px] text-stone-500 block">Nomor Tiket Pengaduan:</span>
                     <span className="text-xl font-bold font-mono tracking-wider text-teal-950">
                       {submittedTicket.ticketCode}
                     </span>
@@ -647,38 +975,44 @@ export default function App() {
                     </span>
                   </div>
 
+                  <div className="text-[11px] text-stone-600 space-y-0.5 pt-1 border-t border-stone-200">
+                    <div><strong>Korban:</strong> {submittedTicket.victimName} ({submittedTicket.victimGender === 'perempuan' ? 'Perempuan' : 'Laki-laki'}, {submittedTicket.victimAge} th)</div>
+                    <div><strong>Pelapor:</strong> {submittedTicket.reporterName} ({submittedTicket.reporterRelationship}) · HP: {submittedTicket.reporterContact}</div>
+                    <div><strong>Lokasi:</strong> Desa {submittedTicket.desaKelurahan}, Kec. {submittedTicket.kecamatan}</div>
+                  </div>
+
                   <div className="pt-2 border-t border-stone-200 text-xs">
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(`Tiket: ${submittedTicket.ticketCode} | PIN: ${submittedTicket.secretPin}`);
+                        navigator.clipboard.writeText(`Nomor Tiket: ${submittedTicket.ticketCode} | PIN: ${submittedTicket.secretPin} (SI-PELKA Nagekeo)`);
                         setCopiedCode(true);
                         setTimeout(() => setCopiedCode(false), 3000);
                       }}
-                      className="w-full py-2 bg-white border border-stone-300 hover:bg-stone-50 rounded-lg font-semibold text-teal-900 flex items-center justify-center gap-1.5 cursor-pointer min-h-[40px]"
+                      className="w-full py-2.5 bg-white border border-stone-300 hover:bg-stone-50 rounded-lg font-semibold text-teal-900 flex items-center justify-center gap-1.5 cursor-pointer min-h-[42px]"
                     >
                       {copiedCode ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                      <span>{copiedCode ? 'Kode & PIN Berhasil Disalin!' : 'Salin Nomor Tiket & PIN'}</span>
+                      <span>{copiedCode ? 'Nomor Tiket & PIN Berhasil Disalin!' : 'Salin Nomor Tiket & PIN'}</span>
                     </button>
                   </div>
                 </div>
 
                 {/* WhatsApp Direct Option */}
                 <a
-                  href={`https://wa.me/6281239871290?text=Halo%20UPTD%20PPA%20Dinas%20PMDP3A%20Nagekeo,%20saya%20telah%20mengirim%20pengaduan%20dengan%20Kode%20Tiket:%20${submittedTicket.ticketCode}%20dan%20membutuhkan%20bantuan%20segera.`}
+                  href={`https://wa.me/6281239871290?text=Halo%20UPTD%20PPA%20Dinas%20PMDP3A%20Kabupaten%20Nagekeo,%20saya%20telah%20mengirim%20pengaduan%20dengan%20Kode%20Tiket:%20${submittedTicket.ticketCode}%20atas%20nama%20korban%20${encodeURIComponent(submittedTicket.victimName)}.%20Mohon%20bantuan%20segera.`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-sm min-h-[46px] touch-manipulation"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  <span>Kirim Notifikasi Cepat ke WhatsApp UPTD PPA</span>
+                  <span>Kirim Konfirmasi Cepat ke WhatsApp UPTD PPA</span>
                 </a>
 
-                <div className="pt-2">
+                <div className="pt-1">
                   <button
                     onClick={handleResetForm}
                     className="text-xs text-stone-500 hover:text-stone-800 underline py-2 cursor-pointer"
                   >
-                    Buat Pengaduan Lainnya
+                    Buat Pengaduan Kasus Baru Lainnya
                   </button>
                 </div>
               </div>
@@ -688,9 +1022,9 @@ export default function App() {
 
         {/* ================= VIEW 2: CEK STATUS ADUAN ================= */}
         {activeTab === 'lacak' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-4 sm:p-5 space-y-5">
+          <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-4 sm:p-5 space-y-4">
             <div>
-              <h2 className="text-sm font-bold text-stone-900">Lacak Pengaduan Anda</h2>
+              <h2 className="text-sm font-bold text-stone-900">Lacak Status Pengaduan Anda</h2>
               <p className="text-xs text-stone-500">
                 Masukkan Kode Tiket dan PIN rahasia untuk memeriksa perkembangan penanganan kasus.
               </p>
@@ -742,24 +1076,27 @@ export default function App() {
 
             {/* Quick Demo Hint */}
             <div className="text-[11px] text-stone-500 bg-stone-50 p-2.5 rounded-lg border border-stone-200">
-              Contoh Tiket Aktif: <button type="button" onClick={() => { setSearchTicket('PPA-NGK-2026-1042'); setSearchPin('4921'); }} className="text-teal-800 font-bold underline">PPA-NGK-2026-1042 (PIN: 4921)</button>
+              Contoh Kasus Aktif: <button type="button" onClick={() => { setSearchTicket('PPA-NGK-2026-1042'); setSearchPin('4921'); }} className="text-teal-800 font-bold underline">PPA-NGK-2026-1042 (PIN: 4921)</button>
             </div>
 
             {/* Result Display */}
             {foundReport && (
               <div className="pt-3 border-t border-stone-200 space-y-4">
-                <div className="bg-teal-50 border border-teal-200 rounded-xl p-3.5 space-y-1.5">
-                  <div className="flex items-center justify-between">
+                <div className="bg-teal-50 border border-teal-200 rounded-xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between border-b border-teal-200/60 pb-1.5">
                     <span className="font-mono font-bold text-xs text-teal-950">{foundReport.ticketCode}</span>
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-teal-800 text-white">
                       Status: {foundReport.status}
                     </span>
                   </div>
-                  <div className="text-xs text-stone-700">
-                    <strong>Wilayah:</strong> Desa {foundReport.desaKelurahan}, Kec. {foundReport.kecamatan}
-                  </div>
-                  <div className="text-xs text-stone-700">
-                    <strong>Bentuk Kekerasan:</strong> {CATEGORY_LABELS[foundReport.category]?.label || foundReport.category}
+
+                  <div className="text-xs text-stone-800 space-y-1">
+                    <div><strong>Data Korban:</strong> {foundReport.victimName} ({foundReport.victimGender === 'perempuan' ? 'P' : 'L'}, {foundReport.victimAge} th)</div>
+                    <div><strong>Alamat Korban:</strong> {foundReport.victimAddress}</div>
+                    <div><strong>Waktu Kejadian:</strong> {foundReport.incidentDate} ({foundReport.incidentTime})</div>
+                    <div><strong>Tempat Kejadian:</strong> {foundReport.incidentPlace}</div>
+                    <div><strong>Terduga Pelaku:</strong> {foundReport.perpetratorName} ({foundReport.perpetratorRelationship})</div>
+                    <div><strong>Pelapor Terdaftar:</strong> {foundReport.reporterName} ({foundReport.reporterRelationship}) · HP: {foundReport.reporterContact}</div>
                   </div>
                 </div>
 
@@ -767,7 +1104,7 @@ export default function App() {
                 <div className="space-y-2 text-xs">
                   <div className="font-bold text-stone-800 flex items-center gap-1.5">
                     <FileText className="w-4 h-4 text-teal-800" />
-                    <span>Catatan Tim UPTD PPA Dinas PMDP3A:</span>
+                    <span>Catatan Petugas UPTD PPA Dinas PMDP3A:</span>
                   </div>
                   {foundReport.officerNotes.map((note) => (
                     <div key={note.id} className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-1">
@@ -777,7 +1114,7 @@ export default function App() {
                       </div>
                       <p className="text-stone-800">{note.summary}</p>
                       <p className="text-stone-600 text-[11px] bg-white p-2 rounded border border-stone-100">
-                        <strong>Tindakan:</strong> {note.actionPlan}
+                        <strong>Rencana Tindakan:</strong> {note.actionPlan}
                       </p>
                     </div>
                   ))}
@@ -787,7 +1124,7 @@ export default function App() {
                 <div className="space-y-2 text-xs">
                   <div className="font-bold text-stone-800 flex items-center gap-1.5">
                     <MessageCircle className="w-4 h-4 text-teal-800" />
-                    <span>Kirim Pesan Tambahan ke Petugas:</span>
+                    <span>Kirim Pesan Rahasia ke Petugas:</span>
                   </div>
 
                   <div className="space-y-1.5 max-h-36 overflow-y-auto bg-stone-50 p-2.5 rounded-xl border border-stone-200">
@@ -812,7 +1149,7 @@ export default function App() {
                       type="text"
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="Tulis pesan ke petugas..."
+                      placeholder="Tulis pesan ke petugas UPTD PPA..."
                       className="flex-1 text-base sm:text-xs border border-stone-300 rounded-xl px-3 py-2 bg-white focus:outline-none min-h-[44px]"
                     />
                     <button
@@ -829,7 +1166,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom Simplified Bar for Phone */}
+      {/* Bottom Footer with Helpline & Official Access */}
       <footer className="bg-stone-900 text-stone-300 text-xs px-4 py-4 mt-auto border-t border-stone-800 space-y-3">
         <div className="max-w-lg mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <div>
@@ -865,7 +1202,7 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Emergency Hotline Modal (Bottom Sheet on Mobile) */}
+      {/* Emergency Hotline Modal */}
       {isEmergencyOpen && (
         <div className="fixed inset-0 z-50 bg-stone-950/75 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-white rounded-t-3xl sm:rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl border border-rose-200">

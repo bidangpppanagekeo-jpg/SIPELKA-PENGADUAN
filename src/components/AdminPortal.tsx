@@ -75,16 +75,34 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   // Export to CSV
   const exportToCSV = () => {
-    const headers = ['Kode Tiket', 'Tanggal', 'Kegawatan', 'Kategori', 'Status', 'Kecamatan', 'Desa', 'Korban', 'Kebutuhan Layanan'];
+    const headers = [
+      'Kode Tiket', 'Tanggal', 'Waktu', 'Kegawatan', 'Kategori', 'Status', 
+      'Kecamatan', 'Desa', 'Nama Korban', 'JK Korban', 'Usia Korban', 'Alamat Korban', 'Tempat Kejadian',
+      'Pelaku Diketahui', 'Nama Pelaku', 'Usia Pelaku', 'Hubungan Pelaku', 'Alamat Pelaku',
+      'Nama Pelapor', 'Hubungan Pelapor', 'Kontak Pelapor', 'Layanan Dibutuhkan'
+    ];
     const rows = filteredReports.map((r) => [
       r.ticketCode,
       r.incidentDate,
+      r.incidentTime,
       r.urgency,
       CATEGORY_LABELS[r.category]?.label || r.category,
       r.status,
       r.kecamatan,
       r.desaKelurahan,
       r.victimName,
+      r.victimGender,
+      r.victimAge,
+      r.victimAddress,
+      r.incidentPlace,
+      r.perpetratorKnown ? 'Ya' : 'Tidak',
+      r.perpetratorName || '-',
+      r.perpetratorAge || '-',
+      r.perpetratorRelationship || '-',
+      r.perpetratorAddress || '-',
+      r.reporterName,
+      r.reporterRelationship,
+      r.reporterContact,
       Object.entries(r.servicesNeeded).filter(([_, v]) => v).map(([k]) => k).join('; ')
     ]);
 
@@ -438,35 +456,51 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <span className="text-stone-400 block text-[11px]">Identitas Korban:</span>
                     <span className="font-bold text-stone-900 block">{selectedCase.victimName}</span>
                     <span className="text-stone-500 text-[11px]">
-                      {selectedCase.victimGender === 'perempuan' ? 'Perempuan' : 'Laki-Laki (Anak)'} · {selectedCase.victimAgeGroup.replace(/_/g, ' ')}
+                      {selectedCase.victimGender === 'perempuan' ? 'Perempuan' : 'Laki-Laki (Anak)'} · Usia: {selectedCase.victimAge} th
+                    </span>
+                    <span className="text-stone-600 block text-[11px] mt-0.5">
+                      Alamat: {selectedCase.victimAddress}
                     </span>
                   </div>
 
                   <div>
-                    <span className="text-stone-400 block text-[11px]">Pelapor & Kerahasiaan:</span>
+                    <span className="text-stone-400 block text-[11px]">Data Pelapor & Kontak:</span>
                     <span className="font-bold text-stone-900 block">{selectedCase.reporterName}</span>
                     <span className="text-stone-500 text-[11px]">
-                      Tipe: {selectedCase.reporterType.replace(/_/g, ' ')} · Tingkat: {selectedCase.confidentiality}
-                      {selectedCase.reporterContact && ` · Kontak: ${selectedCase.reporterContact}`}
+                      Hubungan: {selectedCase.reporterRelationship} · Kerahasiaan: {selectedCase.confidentiality}
+                    </span>
+                    <span className="text-teal-800 font-semibold block text-[11px] mt-0.5">
+                      Kontak: {selectedCase.reporterContact || 'Tidak dicantumkan'}
                     </span>
                   </div>
 
                   <div>
-                    <span className="text-stone-400 block text-[11px]">Wilayah Kejadian di Nagekeo:</span>
+                    <span className="text-stone-400 block text-[11px]">Waktu & Tempat Kejadian:</span>
                     <span className="font-semibold text-stone-800 block">
                       Desa {selectedCase.desaKelurahan}, Kec. {selectedCase.kecamatan}
                     </span>
-                    <span className="text-stone-500 text-[11px]">{selectedCase.incidentLocationDetail}</span>
+                    <span className="text-stone-500 text-[11px]">
+                      Waktu: {selectedCase.incidentDate} ({selectedCase.incidentTime || 'Tidak spesifik'}) · Tempat: {selectedCase.incidentPlace || '-'}
+                    </span>
                   </div>
 
                   <div>
-                    <span className="text-stone-400 block text-[11px]">Terduga Pelaku:</span>
-                    <span className="font-semibold text-stone-800 block">
-                      Hubungan: {selectedCase.perpetratorRelationship.replace(/_/g, ' ')}
-                    </span>
-                    <span className="text-stone-500 text-[11px]">
-                      {selectedCase.perpetratorNameMasked || 'Identitas Terlapor Dirahasiakan'}
-                    </span>
+                    <span className="text-stone-400 block text-[11px]">Data Terduga Pelaku:</span>
+                    {selectedCase.perpetratorKnown ? (
+                      <>
+                        <span className="font-semibold text-stone-800 block">
+                          {selectedCase.perpetratorName} {selectedCase.perpetratorAge ? `(${selectedCase.perpetratorAge} th)` : ''}
+                        </span>
+                        <span className="text-stone-500 text-[11px] block">
+                          Hubungan: {selectedCase.perpetratorRelationship || 'Tidak disebutkan'}
+                        </span>
+                        <span className="text-stone-500 text-[11px] block">
+                          Alamat: {selectedCase.perpetratorAddress || 'Tidak diketahui'}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-stone-500 italic text-[11px]">Identitas pelaku tidak diketahui / anonim</span>
+                    )}
                   </div>
                 </div>
 
@@ -501,7 +535,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       ✓ Mediasi Terpadu
                     </div>
                     <div className={`p-2 rounded border ${selectedCase.servicesNeeded.bantuanSosialDarurat ? 'border-teal-700 bg-teal-50 text-teal-900 font-semibold' : 'border-stone-200 text-stone-400'}`}>
-                      ✓ Bansos Darurat Dinsos
+                      ✓ Bansos Perlindungan Dinas PMDP3A
                     </div>
                   </div>
                 </div>
@@ -510,7 +544,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div className="space-y-3 pt-2 border-t border-stone-200 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-stone-900">Lembar Catatan Penanganan Lapangan</span>
-                    <span className="text-[11px] text-stone-400">UPTD PPA Dinsos Nagekeo</span>
+                    <span className="text-[11px] text-stone-400">UPTD PPA Dinas PMDP3A Nagekeo</span>
                   </div>
 
                   <div className="space-y-2">
@@ -638,7 +672,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <tbody>
                   <tr>
                     <td className="p-2 font-semibold bg-stone-50 w-1/3">Nomor Registrasi:</td>
-                    <td className="p-2 font-mono">{selectedCase.ticketCode}</td>
+                    <td className="p-2 font-mono font-bold">{selectedCase.ticketCode}</td>
                   </tr>
                   <tr>
                     <td className="p-2 font-semibold bg-stone-50">Tingkat Kegawatan:</td>
@@ -649,15 +683,41 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <td className="p-2">{CATEGORY_LABELS[selectedCase.category]?.label}</td>
                   </tr>
                   <tr>
-                    <td className="p-2 font-semibold bg-stone-50">Identitas Korban:</td>
-                    <td className="p-2">{selectedCase.victimName} ({selectedCase.victimAgeGroup.replace(/_/g, ' ')})</td>
+                    <td className="p-2 font-semibold bg-stone-50">Data Korban:</td>
+                    <td className="p-2">
+                      <div className="font-bold">{selectedCase.victimName} ({selectedCase.victimGender === 'perempuan' ? 'Perempuan' : 'Laki-Laki'}, {selectedCase.victimAge} th)</div>
+                      <div className="text-stone-600">Alamat: {selectedCase.victimAddress}</div>
+                    </td>
                   </tr>
                   <tr>
-                    <td className="p-2 font-semibold bg-stone-50">Lokasi Kejadian:</td>
-                    <td className="p-2">Desa {selectedCase.desaKelurahan}, Kecamatan {selectedCase.kecamatan}, Kab. Nagekeo</td>
+                    <td className="p-2 font-semibold bg-stone-50">Waktu & Tempat Kejadian:</td>
+                    <td className="p-2">
+                      {selectedCase.incidentDate} ({selectedCase.incidentTime || '-'}) · Tempat: {selectedCase.incidentPlace || '-'} (Desa {selectedCase.desaKelurahan}, Kec. {selectedCase.kecamatan})
+                    </td>
                   </tr>
                   <tr>
-                    <td className="p-2 font-semibold bg-stone-50">Status Alur:</td>
+                    <td className="p-2 font-semibold bg-stone-50">Data Terduga Pelaku:</td>
+                    <td className="p-2">
+                      {selectedCase.perpetratorKnown ? (
+                        <div>
+                          <strong>{selectedCase.perpetratorName}</strong> {selectedCase.perpetratorAge ? `(${selectedCase.perpetratorAge} th)` : ''}
+                          <div>Hubungan dgn Korban: {selectedCase.perpetratorRelationship || '-'}</div>
+                          <div>Alamat Pelaku: {selectedCase.perpetratorAddress || '-'}</div>
+                        </div>
+                      ) : (
+                        <span className="italic text-stone-500">Pelaku tidak diketahui saat laporan diajukan</span>
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 font-semibold bg-stone-50">Data Pelapor:</td>
+                    <td className="p-2">
+                      <strong>{selectedCase.reporterName}</strong> (Hubungan: {selectedCase.reporterRelationship})
+                      <div>Kontak / WA: {selectedCase.reporterContact || 'Dirahasiakan'}</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 font-semibold bg-stone-50">Status Alur Penanganan:</td>
                     <td className="p-2 uppercase font-bold text-teal-900">{selectedCase.status}</td>
                   </tr>
                 </tbody>

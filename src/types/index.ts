@@ -17,12 +17,6 @@ export type CaseStatus =
   | 'pendampingan'
   | 'selesai';
 
-export type ReporterType =
-  | 'korban'
-  | 'keluarga_kerabat'
-  | 'saksi_warga'
-  | 'tokoh_masyarakat_guru';
-
 export type ConfidentialityLevel = 'anonim' | 'rahasia' | 'terbuka';
 
 export type NagekeoKecamatan =
@@ -77,37 +71,42 @@ export interface ReportItem {
   urgency: UrgencyLevel;
   category: ReportCategory;
   status: CaseStatus;
-  reporterType: ReporterType;
   confidentiality: ConfidentialityLevel;
-  
-  // Identitas Pelapor / Korban
-  reporterName: string;
-  reporterContact?: string;
+
+  // 1. DATA KORBAN
   victimName: string;
-  victimAgeGroup: 'anak_dibawah_12' | 'remaja_12_17' | 'dewasa_18_59' | 'lansia_60_keatas';
-  victimGender: 'perempuan' | 'laki-laki_anak';
-  
-  // Lokasi & Kejadian di Nagekeo
+  victimGender: 'perempuan' | 'laki-laki';
+  victimAge: string;
+  victimAddress: string;
   kecamatan: NagekeoKecamatan;
   desaKelurahan: string;
-  incidentLocationDetail: string;
   incidentDate: string;
+  incidentTime: string;
+  incidentPlace: string;
   incidentDescription: string;
-  
-  // Pelaku
-  perpetratorRelationship: 'suami_istri' | 'orang_tua_wali' | 'kerabat_keluarga' | 'tetangga_kenalan' | 'orang_tak_dikenal' | 'majikan_atasan';
-  perpetratorNameMasked?: string;
-  
+
+  // 2. DATA PELAKU (jika diketahui)
+  perpetratorKnown: boolean;
+  perpetratorName: string;
+  perpetratorAge: string;
+  perpetratorAddress: string;
+  perpetratorRelationship: string;
+
+  // 3. DATA PELAPOR
+  reporterName: string;
+  reporterRelationship: string; // Korban sendiri, Orang tua/Wali, Tetangga, Guru, dll.
+  reporterContact: string; // Nomor kontak/WhatsApp agar mudah dihubungi
+
   // Layanan yang dibutuhkan
   servicesNeeded: ServiceNeeded;
-  
+
   // Lampiran & Bukti
   attachments: CaseAttachment[];
-  
+
   // Riwayat Catatan Petugas & Pesan Aman
   officerNotes: AssessmentNote[];
   messages: ChatMessage[];
-  
+
   // Petugas Penanggung Jawab
   assignedOfficer?: string;
 }

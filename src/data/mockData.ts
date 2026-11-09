@@ -115,20 +115,32 @@ export const INITIAL_REPORTS: ReportItem[] = [
     urgency: 'darurat',
     category: 'kdrt_fisik',
     status: 'pendampingan',
-    reporterType: 'keluarga_kerabat',
     confidentiality: 'rahasia',
-    reporterName: 'M. Rosalina (Kakak Kandung)',
-    reporterContact: '0813-5321-xxxx',
-    victimName: 'Ibu M.T. (Inisial)',
-    victimAgeGroup: 'dewasa_18_59',
+
+    // Data Korban
+    victimName: 'Ibu Maria T. (Inisial M.T.)',
     victimGender: 'perempuan',
+    victimAge: '32',
+    victimAddress: 'Dusun II dekat Pasar Danga, Kelurahan Danga, Kec. Aesesa',
     kecamatan: 'Aesesa',
     desaKelurahan: 'Danga',
-    incidentLocationDetail: 'Kediaman keluarga dekat Pasar Danga Mbay',
     incidentDate: '2026-11-05',
-    incidentDescription: 'Korban mengalami kekerasan fisik berulang oleh pasangan dengan ancaman senjata tajam. Korban mengungsi sementara ke rumah orang tua, mengalami memar di bahu dan pelipis kiri. Memerlukan perlindungan mendesak dan visum et repertum di RSUD Aeramo.',
-    perpetratorRelationship: 'suami_istri',
-    perpetratorNameMasked: 'Sdr. Y.B.',
+    incidentTime: '21:30 WITA',
+    incidentPlace: 'Rumah Tinggal Keluarga',
+    incidentDescription: 'Korban mengalami kekerasan fisik pemukulan berulang oleh pasangan dengan ancaman senjata tajam. Korban mengungsi sementara ke rumah kerabat, mengalami memar di bahu dan pelipis kiri. Memerlukan perlindungan mendesak dan visum et repertum di RSUD Aeramo.',
+
+    // Data Pelaku
+    perpetratorKnown: true,
+    perpetratorName: 'Y. B. (Nama Inisial)',
+    perpetratorAge: '36',
+    perpetratorAddress: 'Kelurahan Danga, Kec. Aesesa, Kab. Nagekeo',
+    perpetratorRelationship: 'Suami / Pasangan',
+
+    // Data Pelapor
+    reporterName: 'M. Rosalina',
+    reporterRelationship: 'Kakak Kandung Korban',
+    reporterContact: '0813-5321-9981',
+
     servicesNeeded: {
       medisVisum: true,
       bantuanHukum: true,
@@ -137,15 +149,7 @@ export const INITIAL_REPORTS: ReportItem[] = [
       mediasiKeluarga: false,
       bantuanSosialDarurat: false
     },
-    attachments: [
-      {
-        id: 'att_1',
-        name: 'Dokumentasi_Luka_Bahu.jpg',
-        type: 'foto',
-        url: '/src/assets/images/nagekeo_safe_center_1794205236918.jpg',
-        size: '1.4 MB'
-      }
-    ],
+    attachments: [],
     officerNotes: [
       {
         id: 'note_1',
@@ -183,20 +187,32 @@ export const INITIAL_REPORTS: ReportItem[] = [
     urgency: 'mendesak',
     category: 'perkawinan_anak',
     status: 'penjangkauan',
-    reporterType: 'tokoh_masyarakat_guru',
     confidentiality: 'rahasia',
-    reporterName: 'Bapak Thomas N. (Guru Konseling)',
-    reporterContact: '0822-3810-xxxx',
-    victimName: 'Anak A.M. (15 Tahun)',
-    victimAgeGroup: 'remaja_12_17',
+
+    // Data Korban
+    victimName: 'Anak A.M.',
     victimGender: 'perempuan',
+    victimAge: '15',
+    victimAddress: 'RT 04 Dusun Raja, Desa Raja, Kec. Boawae',
     kecamatan: 'Boawae',
     desaKelurahan: 'Raja',
-    incidentLocationDetail: 'Wilayah Desa Raja, Kecamatan Boawae',
     incidentDate: '2026-11-06',
+    incidentTime: '10:00 WITA',
+    incidentPlace: 'Lingkungan Tempat Tinggal',
     incidentDescription: 'Siswi kelas IX SMP direncanakan dinikahkan secara adat oleh keluarga besar karena alasan ekonomi dan perantauan orang tua. Siswi menangis di sekolah dan memohon pertolongan agar dapat melanjutkan sekolah.',
-    perpetratorRelationship: 'orang_tua_wali',
-    perpetratorNameMasked: 'Pihak Keluarga Tertentu',
+
+    // Data Pelaku
+    perpetratorKnown: true,
+    perpetratorName: 'Pihak Keluarga Tertentu',
+    perpetratorAge: '48',
+    perpetratorAddress: 'Desa Raja, Kec. Boawae',
+    perpetratorRelationship: 'Orang Tua / Wali Keluarga',
+
+    // Data Pelapor
+    reporterName: 'Bapak Thomas N.',
+    reporterRelationship: 'Guru Konseling Sekolah',
+    reporterContact: '0822-3810-7712',
+
     servicesNeeded: {
       medisVisum: false,
       bantuanHukum: true,
@@ -236,18 +252,32 @@ export const INITIAL_REPORTS: ReportItem[] = [
     urgency: 'darurat',
     category: 'kekerasan_seksual',
     status: 'verifikasi',
-    reporterType: 'korban',
     confidentiality: 'anonim',
-    reporterName: 'Penyintas (Nama Dirahasiakan)',
-    victimName: 'Penyintas Anak (16 Tahun)',
-    victimAgeGroup: 'remaja_12_17',
+
+    // Data Korban
+    victimName: 'Penyintas Anak (Inisial K.N.)',
     victimGender: 'perempuan',
+    victimAge: '16',
+    victimAddress: 'Desa Keli, Kec. Mauponggo, Kab. Nagekeo',
     kecamatan: 'Mauponggo',
     desaKelurahan: 'Keli',
-    incidentLocationDetail: 'Jalan setapak perkebunan cengkeh Desa Keli',
     incidentDate: '2026-11-07',
+    incidentTime: '17:45 WITA',
+    incidentPlace: 'Jalan Setapak Perkebunan Cengkeh',
     incidentDescription: 'Korban mengalami pelecehan dan kekerasan seksual saat pulang dari kegiatan les sore hari oleh oknum pemuda sekitar desa. Korban ketakutan dan mengurung diri di kamar, menolak makan.',
-    perpetratorRelationship: 'tetangga_kenalan',
+
+    // Data Pelaku
+    perpetratorKnown: true,
+    perpetratorName: 'Pemuda Warga Sekitar Desa',
+    perpetratorAge: '22',
+    perpetratorAddress: 'Desa Keli, Mauponggo',
+    perpetratorRelationship: 'Tetangga / Kenalan',
+
+    // Data Pelapor
+    reporterName: 'Penyintas (Nama Dirahasiakan)',
+    reporterRelationship: 'Korban Sendiri',
+    reporterContact: '0812-4410-xxxx',
+
     servicesNeeded: {
       medisVisum: true,
       bantuanHukum: true,
@@ -284,49 +314,5 @@ export const INITIAL_REPORTS: ReportItem[] = [
       }
     ],
     assignedOfficer: 'Siti Rahmawati, S.Tr.Sos'
-  },
-  {
-    id: 'rep_004',
-    ticketCode: 'PPA-NGK-2026-4412',
-    secretPin: '8821',
-    createdAt: '2026-11-05T16:00:00Z',
-    updatedAt: '2026-11-07T17:30:00Z',
-    urgency: 'standar',
-    category: 'penelantaran_anak',
-    status: 'selesai',
-    reporterType: 'saksi_warga',
-    confidentiality: 'terbuka',
-    reporterName: 'Ibu Elisabeth B. (Kader Posyandu)',
-    reporterContact: '0812-3920-xxxx',
-    victimName: 'Dua Balita Bersaudara (2 & 4 Th)',
-    victimAgeGroup: 'anak_dibawah_12',
-    victimGender: 'laki-laki_anak',
-    kecamatan: 'Nangaroro',
-    desaKelurahan: 'Tonggo',
-    incidentLocationDetail: 'Dusun II, Desa Tonggo, Kecamatan Nangaroro',
-    incidentDate: '2026-10-28',
-    incidentDescription: 'Orang tua meninggalkan balita tanpa persediaan makanan yang cukup selama berhari-hari. Warga sekitar bergantian memberi makan namun butuh penanganan dinas untuk bantuan nutrisi dan mediasi tanggung jawab pengasuhan.',
-    perpetratorRelationship: 'orang_tua_wali',
-    servicesNeeded: {
-      medisVisum: false,
-      bantuanHukum: false,
-      konselingPsikologis: true,
-      rumahAman: false,
-      mediasiKeluarga: true,
-      bantuanSosialDarurat: true
-    },
-    attachments: [],
-    officerNotes: [
-      {
-        id: 'note_4',
-        officerName: 'Fransiskus Xaverius, S.IP',
-        date: '2026-11-07 15:00 WITA',
-        summary: 'Pekerja Sosial Dinas PMDP3A Nagekeo telah melakukan asesmen komprehensif. Nenek dari pihak ibu bersedia menjadi wali asuh yang sah. Bantuan Permakanan dan PKH telah disalurkan.',
-        actionPlan: 'Pemantauan berkala bulanan oleh Kader D-SAPA (Desa Sahabat Perempuan dan Anak) Nangaroro.',
-        assignedUnit: 'Seksi Rehabilitasi Sosial & UPTD PPA'
-      }
-    ],
-    messages: [],
-    assignedOfficer: 'Fransiskus Xaverius, S.IP'
   }
 ];
