@@ -113,7 +113,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
           id: `note_${Date.now()}`,
           officerName: 'Sistem Penerimaan Otomatis UPTD PPA',
           date: new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }),
-          summary: `Laporan pengaduan masuk dengan tingkat kegawatan ${urgency.toUpperCase()}. Menunggu verifikasi tim reaksi cepat Dinsos P3A Nagekeo.`,
+          summary: `Laporan pengaduan masuk dengan tingkat kegawatan ${urgency.toUpperCase()}. Menunggu verifikasi tim reaksi cepat Dinas PMDP3A Nagekeo.`,
           actionPlan: 'Penugasan petugas penjangkauan kasus dan penyiapan rujukan sesuai kebutuhan yang dipilih.',
           assignedUnit: 'UPTD PPA Kabupaten Nagekeo'
         }
@@ -141,25 +141,29 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden my-6">
-        {/* Top Header */}
-        <div className="bg-teal-900 text-white px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-teal-800 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-teal-300" />
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/75 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="relative w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-stone-200 overflow-hidden max-h-[92vh] sm:max-h-[85vh] flex flex-col">
+        {/* Top Header with Mobile Sheet Handle */}
+        <div className="bg-teal-900 text-white px-5 sm:px-6 pt-3 sm:pt-4 pb-3.5 sm:pb-4 flex flex-col shrink-0">
+          <div className="w-10 h-1 bg-teal-600/60 rounded-full mx-auto mb-2.5 sm:hidden" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-teal-800 flex items-center justify-center shrink-0">
+                <Shield className="w-4 h-4 text-teal-300" />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-bold leading-tight">Formulir Pengaduan Kekerasan</h2>
+                <p className="text-[11px] sm:text-xs text-teal-200">Dinas PMDP3A Kabupaten Nagekeo</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-base font-bold leading-tight">Formulir Pengaduan Kekerasan</h2>
-              <p className="text-xs text-teal-200">Dinas Sosial P3A Kabupaten Nagekeo</p>
-            </div>
+            <button
+              onClick={resetAndClose}
+              className="text-teal-200 hover:text-white p-2 rounded-lg hover:bg-teal-800 transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
+              aria-label="Tutup Formulir"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <button
-            onClick={resetAndClose}
-            className="text-teal-200 hover:text-white p-1 rounded-lg hover:bg-teal-800 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
         {/* Step Indicator (Only if not in success step) */}
@@ -702,7 +706,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
               <div className="text-[11px] text-stone-500 flex items-start gap-2 bg-stone-50 p-3 rounded-lg border border-stone-200">
                 <Shield className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
                 <span>
-                  Dengan mengirim formulir ini, laporan Anda akan langsung diterima oleh Tim Reaksi Cepat UPTD PPA Dinsos Kabupaten Nagekeo. Kami menjamin perlindungan saksi dan korban sesuai ketentuan UU TPKS No. 12 Tahun 2022.
+                  Dengan mengirim formulir ini, laporan Anda akan langsung diterima oleh Tim Reaksi Cepat UPTD PPA Dinas PMDP3A Kabupaten Nagekeo. Kami menjamin perlindungan saksi dan korban sesuai ketentuan UU TPKS No. 12 Tahun 2022.
                 </span>
               </div>
             </div>
@@ -718,7 +722,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
               <div>
                 <h3 className="text-lg font-bold text-stone-900">Pengaduan Berhasil Terkirim!</h3>
                 <p className="text-xs text-stone-600 max-w-md mx-auto mt-1">
-                  Laporan Anda telah tercatat pada basis data pengaduan Dinsos P3A Kabupaten Nagekeo. Simpan Kode Tiket dan PIN di bawah ini untuk mengecek respon petugas.
+                  Laporan Anda telah tercatat pada basis data pengaduan Dinas PMDP3A Kabupaten Nagekeo. Simpan Kode Tiket dan PIN di bawah ini untuk mengecek respon petugas.
                 </p>
               </div>
 

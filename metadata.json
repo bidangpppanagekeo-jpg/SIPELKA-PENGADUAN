@@ -1,6 +1,6 @@
 {
-  "name": "SAPA Nagekeo - Pengaduan Perempuan & Anak",
-  "description": "Aplikasi Pengaduan dan Perlindungan Korban Kekerasan Terhadap Perempuan dan Anak - Dinas Sosial P3A Kabupaten Nagekeo, Nusa Tenggara Timur.",
+  "name": "SI-PELKA Nagekeo - Pengaduan Perempuan dan Anak",
+  "description": "Aplikasi Pengaduan dan Pelindungan Korban Kekerasan Terhadap Perempuan dan Anak - Dinas PMDP3A Kabupaten Nagekeo, Nusa Tenggara Timur.",
   "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -27,43 +27,43 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           <div className="lg:col-span-7 space-y-6">
             {/* Header Kicker */}
             <div className="inline-flex items-center gap-2 text-teal-300 text-xs font-medium tracking-wide">
-              <span className="w-2 h-2 rounded-full bg-teal-400" />
-              <span>Dinas Sosial, Pemberdayaan Perempuan & Perlindungan Anak Kab. Nagekeo</span>
+              <span className="w-2 h-2 rounded-full bg-teal-400 shrink-0" />
+              <span>Dinas PMDP3A Kabupaten Nagekeo, Flores - NTT</span>
             </div>
 
             {/* Main Headline */}
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-[1.15] text-balance">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-[1.2] sm:leading-[1.15] text-balance">
               Anda Tidak Sendiri. Kami Hadir Melindungi Perempuan dan Anak Nagekeo.
             </h1>
 
             {/* Empathetic Subtext */}
-            <p className="text-base sm:text-lg text-stone-200 leading-relaxed max-w-2xl font-normal">
+            <p className="text-sm sm:text-lg text-stone-200 leading-relaxed max-w-2xl font-normal">
               Layanan pengaduan resmi, cepat, dan aman bagi korban maupun saksi tindak kekerasan di Kabupaten Nagekeo. Identitas Anda dapat dirahasiakan sepenuhnya. Tim UPTD PPA siap mendampingi pemulihan medis, hukum, dan psikologis.
             </p>
 
             {/* Reassurance Trust Points - Zero Pill unboxed clean typography */}
-            <div className="pt-2 flex flex-wrap items-center gap-y-2 gap-x-6 text-xs text-stone-300">
+            <div className="pt-1 sm:pt-2 flex flex-wrap items-center gap-y-2 gap-x-5 text-xs text-stone-300">
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-teal-300 shrink-0" />
                 <span>100% Rahasia & Terlindungi</span>
               </div>
-              <span className="text-stone-500" aria-hidden="true">·</span>
+              <span className="hidden xs:inline text-stone-500" aria-hidden="true">·</span>
               <div className="flex items-center gap-1.5">
                 <HeartHandshake className="w-4 h-4 text-teal-300 shrink-0" />
                 <span>Pendampingan & Visum Gratis</span>
               </div>
-              <span className="text-stone-500" aria-hidden="true">·</span>
+              <span className="hidden xs:inline text-stone-500" aria-hidden="true">·</span>
               <div className="flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4 text-amber-300 shrink-0" />
                 <span>Respon Tanggap Cepat Lapangan</span>
               </div>
             </div>
 
-            {/* Primary Action Buttons */}
-            <div className="pt-4 flex flex-wrap items-center gap-3">
+            {/* Primary Action Buttons (Responsive & Touch-first on mobile) */}
+            <div className="pt-2 sm:pt-4 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3">
               <button
                 onClick={onOpenReport}
-                className="px-6 py-3 text-sm font-semibold text-teal-950 bg-teal-400 hover:bg-teal-300 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2.5 cursor-pointer whitespace-nowrap"
+                className="w-full sm:w-auto px-6 py-3.5 sm:py-3 text-sm font-semibold text-teal-950 bg-teal-400 hover:bg-teal-300 active:bg-teal-500 rounded-xl sm:rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 cursor-pointer min-h-[48px] touch-manipulation"
               >
                 <PlusCircle className="w-5 h-5" />
                 <span>Lapor Kasus Sekarang</span>
@@ -71,7 +71,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
               <button
                 onClick={onOpenTracker}
-                className="px-5 py-3 text-sm font-medium text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap"
+                className="w-full sm:w-auto px-5 py-3.5 sm:py-3 text-sm font-medium text-white bg-white/10 hover:bg-white/20 active:bg-white/30 border border-white/20 rounded-xl sm:rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer min-h-[48px] touch-manipulation"
               >
                 <Search className="w-4 h-4 text-teal-300" />
                 <span>Lacak Status Kasus</span>
@@ -79,10 +79,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
               <button
                 onClick={onOpenEmergency}
-                className="px-4 py-3 text-sm font-medium text-rose-300 bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/60 rounded-lg transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap"
+                className="w-full sm:w-auto px-4 py-3.5 sm:py-3 text-sm font-medium text-rose-200 bg-rose-950/70 hover:bg-rose-900 active:bg-rose-950 border border-rose-800/70 rounded-xl sm:rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer min-h-[48px] touch-manipulation"
               >
                 <PhoneCall className="w-4 h-4 text-rose-400" />
-                <span>Hotline Darurat</span>
+                <span>Hotline Darurat 24 Jam</span>
               </button>
             </div>
 

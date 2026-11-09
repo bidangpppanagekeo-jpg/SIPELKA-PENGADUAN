@@ -13,7 +13,7 @@ export const NAGEKEO_KECAMATAN_DATA: Record<NagekeoKecamatan, string[]> = {
 export const EMERGENCY_CONTACTS = [
   {
     id: 'uptd_ppa',
-    name: 'UPTD PPA Dinsos P3A Kabupaten Nagekeo',
+    name: 'UPTD PPA Dinas PMDP3A Kabupaten Nagekeo',
     role: 'Unit Layanan Cepat Penanganan Perempuan & Anak',
     phone: '0812-3987-1290',
     whatsapp: '6281239871290',
@@ -149,7 +149,7 @@ export const INITIAL_REPORTS: ReportItem[] = [
     officerNotes: [
       {
         id: 'note_1',
-        officerName: 'Maria Yasinta, S.Sos (Konselor Dinsos P3A)',
+        officerName: 'Maria Yasinta, S.Sos (Konselor Dinas PMDP3A)',
         date: '2026-11-06 11:00 WITA',
         summary: 'Tim Reaksi Cepat UPTD PPA berkoordinasi dengan Bhabinkamtibmas Kelurahan Danga dan mendampingi korban ke RSUD Aeramo untuk visum et repertum.',
         actionPlan: 'Penempatan sementara di Safe House Kabupaten Nagekeo, penjadwalan konseling trauma healing serta permohonan Surat Tanda Penerimaan Laporan (STPL) di Unit PPA Satreskrim Polres Nagekeo.',
@@ -168,7 +168,7 @@ export const INITIAL_REPORTS: ReportItem[] = [
         id: 'msg_2',
         sender: 'petugas',
         senderName: 'Petugas UPTD PPA Nagekeo',
-        text: 'Puji Tuhan. Hari ini tim psikolog klinis Dinsos P3A akan mendampingi sesi pemulihan awal di Rumah Aman. Segala kebutuhan perlindungan hukum ke Polres juga sudah kami siapkan.',
+        text: 'Puji Tuhan. Hari ini tim psikolog klinis Dinas PMDP3A akan mendampingi sesi pemulihan awal di Rumah Aman. Segala kebutuhan perlindungan hukum ke Polres juga sudah kami siapkan.',
         timestamp: '2026-11-07 09:10 WITA'
       }
     ],
@@ -213,14 +213,14 @@ export const INITIAL_REPORTS: ReportItem[] = [
         date: '2026-11-08 09:30 WITA',
         summary: 'Koordinasi dengan Pemerintah Kecamatan Boawae, Kepala Desa Raja, serta tokoh adat setempat untuk mediasi restoratif perlindungan hak pendidikan anak sesuai UU No. 16/2019.',
         actionPlan: 'Kunjungan penjangkauan home visit bersama tim terpadu P3A Nagekeo ke keluarga pada tanggal 10 November 2026.',
-        assignedUnit: 'Bidang Perlindungan Anak Dinsos P3A Nagekeo'
+        assignedUnit: 'Bidang Perlindungan Anak Dinas PMDP3A Nagekeo'
       }
     ],
     messages: [
       {
         id: 'msg_3',
         sender: 'petugas',
-        senderName: 'Petugas Advokasi Dinsos P3A',
+        senderName: 'Petugas Advokasi Dinas PMDP3A',
         text: 'Salam hormat Bapak Guru. Laporan sudah kami registrasi dan Kepala Bidang PPPA telah menjadwalkan mediasi persuasif bersama Camat Boawae agar hak sekolah anak tetap terlindungi.',
         timestamp: '2026-11-08 10:00 WITA'
       }
@@ -305,7 +305,7 @@ export const INITIAL_REPORTS: ReportItem[] = [
     desaKelurahan: 'Tonggo',
     incidentLocationDetail: 'Dusun II, Desa Tonggo, Kecamatan Nangaroro',
     incidentDate: '2026-10-28',
-    incidentDescription: 'Orang tua meninggalkan balita tanpa persediaan makanan yang cukup selama berhari-hari. Warga sekitar bergantian memberi makan namun butuh penanganan dinas sosial untuk bantuan nutrisi dan mediasi tanggung jawab pengasuhan.',
+    incidentDescription: 'Orang tua meninggalkan balita tanpa persediaan makanan yang cukup selama berhari-hari. Warga sekitar bergantian memberi makan namun butuh penanganan dinas untuk bantuan nutrisi dan mediasi tanggung jawab pengasuhan.',
     perpetratorRelationship: 'orang_tua_wali',
     servicesNeeded: {
       medisVisum: false,
@@ -321,7 +321,7 @@ export const INITIAL_REPORTS: ReportItem[] = [
         id: 'note_4',
         officerName: 'Fransiskus Xaverius, S.IP',
         date: '2026-11-07 15:00 WITA',
-        summary: 'Pekerja Sosial Dinsos P3A Nagekeo telah melakukan asesmen komprehensif. Nenek dari pihak ibu bersedia menjadi wali asuh yang sah. Bantuan Permakanan dan PKH telah disalurkan.',
+        summary: 'Pekerja Sosial Dinas PMDP3A Nagekeo telah melakukan asesmen komprehensif. Nenek dari pihak ibu bersedia menjadi wali asuh yang sah. Bantuan Permakanan dan PKH telah disalurkan.',
         actionPlan: 'Pemantauan berkala bulanan oleh Kader D-SAPA (Desa Sahabat Perempuan dan Anak) Nangaroro.',
         assignedUnit: 'Seksi Rehabilitasi Sosial & UPTD PPA'
       }

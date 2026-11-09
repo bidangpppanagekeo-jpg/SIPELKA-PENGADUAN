@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { HeroSection } from './components/HeroSection';
 import { CategoriesSection } from './components/CategoriesSection';
 import { DistrictSection } from './components/DistrictSection';
@@ -19,7 +20,7 @@ export default function App() {
   // Load reports from localStorage or fallback to initial data
   const [reports, setReports] = useState<ReportItem[]>(() => {
     try {
-      const saved = localStorage.getItem('sapa_nagekeo_reports');
+      const saved = localStorage.getItem('sipelka_nagekeo_reports') || localStorage.getItem('sapa_nagekeo_reports');
       if (saved) {
         return JSON.parse(saved);
       }
@@ -32,7 +33,7 @@ export default function App() {
   // Save reports on change
   useEffect(() => {
     try {
-      localStorage.setItem('sapa_nagekeo_reports', JSON.stringify(reports));
+      localStorage.setItem('sipelka_nagekeo_reports', JSON.stringify(reports));
     } catch (e) {
       console.error('Error writing localStorage', e);
     }
@@ -278,8 +279,30 @@ export default function App() {
         </div>
       </main>
 
-      {/* Official Footer */}
-      <Footer
+      {/* Official Footer with pb-20 on mobile to not be occluded by bottom nav */}
+      <div className="pb-20 md:pb-0">
+        <Footer
+          onOpenReport={() => {
+            setInitialCategory(undefined);
+            setInitialDistrict(undefined);
+            setIsReportModalOpen(true);
+          }}
+          onOpenTracker={() => setIsTrackerModalOpen(true)}
+          onOpenEmergency={() => setIsEmergencyModalOpen(true)}
+          onOpenAdmin={() => setIsAdminPortalOpen(true)}
+          onToggleDisguise={() => setIsDisguised(true)}
+        />
+      </div>
+
+      {/* Fixed Mobile Bottom Navigation Bar for iOS & Android */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          if (tab === 'beranda') {
+            setIsAdminPortalOpen(false);
+          }
+        }}
         onOpenReport={() => {
           setInitialCategory(undefined);
           setInitialDistrict(undefined);
@@ -288,7 +311,6 @@ export default function App() {
         onOpenTracker={() => setIsTrackerModalOpen(true)}
         onOpenEmergency={() => setIsEmergencyModalOpen(true)}
         onOpenAdmin={() => setIsAdminPortalOpen(true)}
-        onToggleDisguise={() => setIsDisguised(true)}
       />
 
       {/* Modals & Dialogs */}

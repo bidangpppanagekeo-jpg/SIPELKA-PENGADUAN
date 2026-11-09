@@ -26,13 +26,13 @@ export const Footer: React.FC<FooterProps> = ({
               <div className="w-8 h-8 rounded-lg bg-teal-800 text-white flex items-center justify-center font-bold">
                 <Shield className="w-4 h-4 text-teal-200" />
               </div>
-              <span className="text-base font-bold text-white tracking-tight">SAPA Nagekeo</span>
+              <span className="text-base font-bold text-white tracking-tight">SI-PELKA Nagekeo</span>
             </div>
             <p className="text-stone-400 text-xs leading-relaxed">
-              Sistem Informasi dan Pengaduan Perlindungan Perempuan dan Anak Kabupaten Nagekeo, Nusa Tenggara Timur. Menjamin kerahasiaan, keamanan, dan pemulihan korban kekerasan.
+              Sistem Informasi Pengaduan dan Pelindungan Korban Kekerasan Terhadap Perempuan dan Anak Kabupaten Nagekeo, Nusa Tenggara Timur.
             </p>
             <div className="text-[11px] text-teal-400 font-medium">
-              UPTD PPA Dinsos Kabupaten Nagekeo
+              UPTD PPA Dinas PMDP3A Kabupaten Nagekeo
             </div>
           </div>
 
@@ -86,7 +86,7 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="space-y-3">
             <h4 className="text-white font-bold text-xs uppercase tracking-wider">Akses Khusus Dinas</h4>
             <p className="text-stone-400 text-[11px] leading-relaxed">
-              Bagi aparatur Bidang PPPA Dinas Sosial Kab. Nagekeo untuk mengelola verifikasi kasus, disposisi visum, dan berita acara.
+              Bagi aparatur Bidang PPPA Dinas PMDP3A Kab. Nagekeo untuk mengelola verifikasi kasus, disposisi visum, dan berita acara.
             </p>
             <button
               onClick={onOpenAdmin}
@@ -100,7 +100,7 @@ export const Footer: React.FC<FooterProps> = ({
 
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-stone-800 flex flex-wrap items-center justify-between gap-4 text-stone-500 text-[11px]">
-          <p>© 2026 Dinas Sosial, Pemberdayaan Perempuan dan Perlindungan Anak Kabupaten Nagekeo, Nusa Tenggara Timur.</p>
+          <p>© 2026 Dinas Pemberdayaan Masyarakat dan Desa, Pemberdayaan Perempuan dan Perlindungan Anak (Dinas PMDP3A) Kabupaten Nagekeo.</p>
           <div className="flex items-center gap-4">
             <span>UU No. 12 Tahun 2022 (TPKS)</span>
             <span>·</span>

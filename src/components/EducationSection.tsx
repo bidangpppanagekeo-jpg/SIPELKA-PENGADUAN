@@ -67,7 +67,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({ onOpenReport
           <div className="max-w-xl">
             <h3 className="text-lg font-bold text-stone-900">Alur Layanan Pengaduan UPTD PPA Kabupaten Nagekeo</h3>
             <p className="text-xs text-stone-500 mt-1">
-              Setiap laporan ditindaklanjuti secara sistematis dan rahasia oleh Tim Reaksi Cepat Dinsos P3A Nagekeo.
+              Setiap laporan ditindaklanjuti secara sistematis dan rahasia oleh Tim Reaksi Cepat Dinas PMDP3A Nagekeo.
             </p>
           </div>
 
@@ -76,7 +76,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({ onOpenReport
               <span className="text-xs font-mono font-bold text-teal-800">Langkah 01</span>
               <h4 className="text-sm font-bold text-stone-900">Penerimaan Aduan</h4>
               <p className="text-xs text-stone-600 leading-relaxed">
-                Pelapor mengisi formulir online (SAPA Nagekeo) atau menghubungi hotline siaga 24 jam.
+                Pelapor mengisi formulir online (SI-PELKA Nagekeo) atau menghubungi hotline siaga 24 jam.
               </p>
             </div>
 
@@ -133,12 +133,12 @@ export const EducationSection: React.FC<EducationSectionProps> = ({ onOpenReport
               Ruang Konsultasi Ramah Anak & Perlindungan Nyaman
             </h3>
             <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-              UPTD PPA Dinsos Kabupaten Nagekeo menyediakan ruang konsultasi dan rumah aman sementara yang dilengkapi sarana bermain anak, privasi kedap suara, dan suasana menenangkan agar ibu dan anak merasa tenteram menceritakan apa yang dialami.
+              UPTD PPA Dinas PMDP3A Kabupaten Nagekeo menyediakan ruang konsultasi dan rumah aman sementara yang dilengkapi sarana bermain anak, privasi kedap suara, dan suasana menenangkan agar ibu dan anak merasa tenteram menceritakan apa yang dialami.
             </p>
             <div className="pt-2">
               <button
                 onClick={onOpenReport}
-                className="px-5 py-2.5 text-xs font-semibold text-white bg-teal-800 hover:bg-teal-900 rounded-lg shadow-sm transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3 text-xs sm:text-sm font-semibold text-white bg-teal-800 hover:bg-teal-900 active:bg-teal-950 rounded-xl sm:rounded-lg shadow-sm transition-colors cursor-pointer min-h-[44px] touch-manipulation flex items-center justify-center"
               >
                 Konsultasikan Masalah Anda Sekarang
               </button>

@@ -11,25 +11,29 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({ isOpen, onClose 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-rose-200 overflow-hidden my-6">
-        {/* Header */}
-        <div className="bg-rose-900 text-white px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-rose-800 flex items-center justify-center text-rose-200">
-              <ShieldAlert className="w-4 h-4" />
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/75 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="relative w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-rose-200 overflow-hidden max-h-[92vh] sm:max-h-[85vh] flex flex-col">
+        {/* Header with Mobile Drag Handle */}
+        <div className="bg-rose-900 text-white px-5 sm:px-6 pt-3 sm:pt-4 pb-3.5 sm:pb-4 flex flex-col shrink-0">
+          <div className="w-10 h-1 bg-rose-700 rounded-full mx-auto mb-2.5 sm:hidden" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-rose-800 flex items-center justify-center text-rose-200 shrink-0">
+                <ShieldAlert className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-bold leading-tight">Hotline Darurat 24 Jam Nagekeo</h2>
+                <p className="text-[11px] sm:text-xs text-rose-200">Bantuan Segera Penanganan Perempuan & Anak</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-base font-bold leading-tight">Hotline Darurat 24 Jam Nagekeo</h2>
-              <p className="text-xs text-rose-200">Bantuan Segera Penanganan Perempuan & Anak</p>
-            </div>
+            <button
+              onClick={onClose}
+              className="text-rose-200 hover:text-white p-2 rounded-lg hover:bg-rose-800 transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
+              aria-label="Tutup Hotline"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="text-rose-200 hover:text-white p-1 rounded-lg hover:bg-rose-800 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
         <div className="p-6 max-h-[80vh] overflow-y-auto space-y-5">

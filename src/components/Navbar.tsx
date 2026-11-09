@@ -30,23 +30,23 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <>
       {/* Top Emergency Action Bar for Safety First */}
-      <div className="bg-stone-900 text-stone-200 text-xs px-4 py-1.5 border-b border-stone-800 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 text-rose-300 font-medium">
-            <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
-            Layanan Siaga Kekerasan Perempuan & Anak Nagekeo
+      <div className="bg-stone-900 text-stone-200 text-xs px-3 sm:px-4 py-1.5 border-b border-stone-800 flex items-center justify-between">
+        <div className="flex items-center gap-2 sm:gap-3 truncate pr-2">
+          <span className="inline-flex items-center gap-1.5 text-rose-300 font-medium truncate">
+            <span className="w-2 h-2 rounded-full bg-rose-500 inline-block shrink-0" />
+            <span className="truncate">Layanan Siaga Kekerasan Perempuan & Anak Nagekeo</span>
           </span>
           <span className="hidden sm:inline text-stone-400">·</span>
-          <span className="hidden sm:inline text-stone-400">Dinsos P3A Kabupaten Nagekeo, NTT</span>
+          <span className="hidden sm:inline text-stone-400 whitespace-nowrap">Dinas PMDP3A Kab. Nagekeo</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Disguise Mode Switch */}
           <button
             onClick={onToggleDisguise}
             title="Sembunyikan halaman ini jika ada orang mendekat"
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded bg-stone-800 hover:bg-stone-700 text-stone-200 transition-colors whitespace-nowrap cursor-pointer"
+            className="flex items-center gap-1.5 min-h-[36px] px-2.5 py-1 text-xs rounded-lg bg-stone-800 active:bg-stone-700 hover:bg-stone-700 text-stone-200 transition-colors whitespace-nowrap cursor-pointer touch-manipulation"
           >
-            <EyeOff className="w-3.5 h-3.5 text-amber-400" />
+            <EyeOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <span className="hidden xs:inline">Mode Samaran</span>
           </button>
 
@@ -54,17 +54,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={handleQuickExit}
             title="Tutup halaman seketika & buka Google Cuaca"
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded bg-rose-700 hover:bg-rose-800 text-white transition-colors whitespace-nowrap cursor-pointer"
+            className="flex items-center gap-1.5 min-h-[36px] px-2.5 py-1 text-xs font-semibold rounded-lg bg-rose-700 active:bg-rose-800 hover:bg-rose-800 text-white transition-colors whitespace-nowrap cursor-pointer touch-manipulation"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-3.5 h-3.5 shrink-0" />
             <span>Keluar Cepat</span>
           </button>
         </div>
       </div>
 
       {/* Main Top Bar adhering to Top Bar Contract: [Brand title] - [4-5 links] - [1 action] */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-stone-200 px-4 lg:px-8 py-3.5 transition-colors">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-8">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-stone-200 px-3 sm:px-4 lg:px-8 py-3 transition-colors">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 sm:gap-8">
           {/* Zone 1: Brand Wordmark (Single text element) */}
           <a
             href="#beranda"
@@ -73,17 +73,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               setActiveTab('beranda');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className="flex items-center gap-2.5 whitespace-nowrap shrink-0 group"
+            className="flex items-center gap-2.5 whitespace-nowrap shrink-0 group min-h-[44px]"
           >
-            <div className="w-9 h-9 rounded-lg bg-teal-800 text-white flex items-center justify-center font-bold shadow-sm">
+            <div className="w-9 h-9 rounded-lg bg-teal-800 text-white flex items-center justify-center font-bold shadow-sm shrink-0">
               <Shield className="w-5 h-5 text-teal-200" />
             </div>
             <div className="flex flex-col">
               <span className="text-base font-bold tracking-tight text-stone-900 group-hover:text-teal-800 transition-colors">
-                SAPA Nagekeo
+                SI-PELKA Nagekeo
               </span>
               <span className="text-[11px] text-stone-500 font-normal leading-tight">
-                UPTD PPA Kab. Nagekeo
+                Pengaduan Perempuan & Anak · Dinas PMDP3A
               </span>
             </div>
           </a>

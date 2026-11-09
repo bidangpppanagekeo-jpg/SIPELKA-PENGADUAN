@@ -129,19 +129,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   if (!isAuthenticated) {
     return (
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/75 backdrop-blur-xs flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 max-w-md w-full p-6 text-stone-900 space-y-5">
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/75 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-stone-200 max-w-md w-full p-5 sm:p-6 text-stone-900 space-y-5">
+          <div className="w-10 h-1 bg-stone-300 rounded-full mx-auto sm:hidden" />
           <div className="flex items-center justify-between border-b border-stone-100 pb-3">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-teal-800 text-white flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-teal-800 text-white flex items-center justify-center shrink-0">
                 <Lock className="w-4 h-4 text-teal-200" />
               </div>
               <div>
-                <h3 className="font-bold text-sm text-stone-900">Portal Petugas Dinsos P3A</h3>
+                <h3 className="font-bold text-sm text-stone-900">Portal Petugas Dinas PMDP3A</h3>
                 <p className="text-[11px] text-stone-500">Kabupaten Nagekeo, Nusa Tenggara Timur</p>
               </div>
             </div>
-            <button onClick={onClose} className="text-stone-400 hover:text-stone-700 cursor-pointer">
+            <button
+              onClick={onClose}
+              className="text-stone-400 hover:text-stone-700 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -154,7 +158,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 value={officerEmail}
                 onChange={(e) => setOfficerEmail(e.target.value)}
                 placeholder="bidangpppanagekeo@gmail.com"
-                className="w-full border border-stone-300 rounded-lg p-2.5 focus:border-teal-700 focus:outline-none"
+                className="w-full text-base sm:text-xs border border-stone-300 rounded-xl sm:rounded-lg p-3 sm:p-2.5 focus:border-teal-700 focus:outline-none min-h-[44px]"
               />
             </div>
 
@@ -162,25 +166,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <label className="block font-semibold text-stone-700 mb-1">Kode Akses / PIN Petugas</label>
               <input
                 type="password"
+                inputMode="numeric"
                 value={pinCode}
                 onChange={(e) => setPinCode(e.target.value)}
                 placeholder="Masukkan PIN (Default: 1290)"
-                className="w-full border border-stone-300 rounded-lg p-2.5 focus:border-teal-700 focus:outline-none font-mono"
+                className="w-full text-base sm:text-xs border border-stone-300 rounded-xl sm:rounded-lg p-3 sm:p-2.5 focus:border-teal-700 focus:outline-none font-mono min-h-[44px]"
               />
             </div>
 
-            {loginError && <p className="text-rose-600">{loginError}</p>}
+            {loginError && <p className="text-rose-600 font-medium">{loginError}</p>}
 
             <button
               type="submit"
-              className="w-full py-2.5 bg-teal-800 hover:bg-teal-900 text-white font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+              className="w-full py-3 sm:py-2.5 bg-teal-800 hover:bg-teal-900 active:bg-teal-950 text-white font-semibold rounded-xl sm:rounded-lg shadow-sm transition-colors cursor-pointer min-h-[48px] touch-manipulation"
             >
               Masuk Portal Manajemen Kasus
             </button>
           </form>
 
-          <div className="text-[11px] text-stone-500 text-center bg-stone-50 p-2.5 rounded-lg border border-stone-200">
-            Akses resmi diperuntukkan bagi Bidang Pemberdayaan Perempuan & Perlindungan Anak Dinas Sosial Kab. Nagekeo. PIN cepat: <code className="font-mono font-bold text-teal-800">1290</code>
+          <div className="text-[11px] text-stone-500 text-center bg-stone-50 p-3 rounded-xl border border-stone-200">
+            Akses resmi diperuntukkan bagi Bidang Pemberdayaan Perempuan & Perlindungan Anak Dinas PMDP3A Kab. Nagekeo. PIN cepat: <code className="font-mono font-bold text-teal-800">1290</code>
           </div>
         </div>
       </div>
@@ -612,7 +617,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             {/* Kop Surat Resmi */}
             <div className="text-center border-b-2 border-stone-900 pb-4 space-y-1">
               <h2 className="text-sm font-bold tracking-wider uppercase">PEMERINTAH KABUPATEN NAGEKEO</h2>
-              <h1 className="text-base font-extrabold tracking-wide uppercase">DINAS SOSIAL, PEMBERDAYAAN PEREMPUAN DAN PERLINDUNGAN ANAK</h1>
+              <h1 className="text-sm sm:text-base font-extrabold tracking-wide uppercase">DINAS PEMBERDAYAAN MASYARAKAT DAN DESA, PEMBERDAYAAN PEREMPUAN DAN PERLINDUNGAN ANAK (DINAS PMDP3A)</h1>
               <h3 className="text-xs font-semibold uppercase">UPTD PERLINDUNGAN PEREMPUAN DAN ANAK (UPTD PPA)</h3>
               <p className="text-[10px] text-stone-600">
                 Jl. Soekarno-Hatta, Kompleks Civic Center, Mbay, Nusa Tenggara Timur · Telp: 0812-3987-1290
