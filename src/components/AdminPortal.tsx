@@ -39,7 +39,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onClose,
   onOfficerLoginChange
 }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [officerEmail, setOfficerEmail] = useState<string>('bidangpppanagekeo@gmail.com');
   const [pinCode, setPinCode] = useState<string>('1290');
   const [loginError, setLoginError] = useState<string>('');
