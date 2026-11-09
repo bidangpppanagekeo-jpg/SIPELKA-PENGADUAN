@@ -293,16 +293,15 @@ export default function App() {
     e.preventDefault();
     setTrackerError('');
     const tCode = searchTicket.trim().toUpperCase();
-    const pin = searchPin.trim();
 
     const found = reports.find(
-      (r) => r.ticketCode.toUpperCase() === tCode && r.secretPin === pin
+      (r) => r.ticketCode.toUpperCase() === tCode
     );
 
     if (found) {
       setFoundReport(found);
     } else {
-      setTrackerError('Nomor Tiket atau PIN tidak cocok. Silakan periksa kembali bukti lapor Anda.');
+      setTrackerError('Nomor Tiket tidak ditemukan. Silakan periksa kembali nomor tiket Anda.');
       setFoundReport(null);
     }
   };
@@ -1038,13 +1037,6 @@ export default function App() {
                     </span>
                   </div>
 
-                  <div>
-                    <span className="text-[11px] text-stone-500 block">PIN Rahasia Pelacak:</span>
-                    <span className="text-base font-bold font-mono tracking-widest text-stone-800">
-                      {submittedTicket.secretPin}
-                    </span>
-                  </div>
-
                   <div className="text-[11px] text-stone-600 space-y-0.5 pt-1 border-t border-stone-200">
                     <div><strong>Korban:</strong> {submittedTicket.victimName} ({submittedTicket.victimGender === 'perempuan' ? 'Perempuan' : 'Laki-laki'}, {submittedTicket.victimAge} th)</div>
                     <div><strong>Pelapor:</strong> {submittedTicket.reporterName} ({submittedTicket.reporterRelationship}) · HP: {submittedTicket.reporterContact}</div>
@@ -1061,14 +1053,14 @@ export default function App() {
                   <div className="pt-2 border-t border-stone-200 text-xs">
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(`Nomor Tiket: ${submittedTicket.ticketCode} | PIN: ${submittedTicket.secretPin} (SI-PELKA Nagekeo)`);
+                        navigator.clipboard.writeText(`Nomor Tiket: ${submittedTicket.ticketCode} (SI-PELKA Nagekeo)`);
                         setCopiedCode(true);
                         setTimeout(() => setCopiedCode(false), 3000);
                       }}
                       className="w-full py-2.5 bg-white border border-stone-300 hover:bg-stone-50 rounded-lg font-semibold text-teal-900 flex items-center justify-center gap-1.5 cursor-pointer min-h-[42px]"
                     >
                       {copiedCode ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                      <span>{copiedCode ? 'Nomor Tiket & PIN Berhasil Disalin!' : 'Salin Nomor Tiket & PIN'}</span>
+                      <span>{copiedCode ? 'Nomor Tiket Berhasil Disalin!' : 'Salin Nomor Tiket Pengaduan'}</span>
                     </button>
                   </div>
                 </div>
@@ -1103,14 +1095,14 @@ export default function App() {
             <div>
               <h2 className="text-sm font-bold text-stone-900">Lacak Status Pengaduan Anda</h2>
               <p className="text-xs text-stone-500">
-                Masukkan Kode Tiket dan PIN rahasia untuk memeriksa perkembangan penanganan kasus.
+                Masukkan Kode Tiket Pengaduan Anda untuk memeriksa perkembangan penanganan kasus.
               </p>
             </div>
 
             <form onSubmit={handleSearchCase} className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  Nomor Tiket:
+                  Nomor Tiket Pengaduan:
                 </label>
                 <input
                   type="text"
@@ -1118,22 +1110,6 @@ export default function App() {
                   onChange={(e) => setSearchTicket(e.target.value)}
                   placeholder="Contoh: PPA-NGK-2026-1042"
                   className="w-full text-base sm:text-xs font-mono font-medium border border-stone-300 rounded-xl p-3 bg-stone-50 uppercase focus:bg-white focus:border-teal-700 focus:outline-none min-h-[44px]"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  PIN 4 Digit:
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={searchPin}
-                  onChange={(e) => setSearchPin(e.target.value)}
-                  placeholder="PIN Rahasia"
-                  maxLength={4}
-                  className="w-full text-base sm:text-xs font-mono font-medium border border-stone-300 rounded-xl p-3 bg-stone-50 tracking-widest text-center focus:bg-white focus:border-teal-700 focus:outline-none min-h-[44px]"
                   required
                 />
               </div>
@@ -1153,7 +1129,7 @@ export default function App() {
 
             {/* Quick Demo Hint */}
             <div className="text-[11px] text-stone-500 bg-stone-50 p-2.5 rounded-lg border border-stone-200">
-              Contoh Kasus Aktif: <button type="button" onClick={() => { setSearchTicket('PPA-NGK-2026-1042'); setSearchPin('4921'); }} className="text-teal-800 font-bold underline">PPA-NGK-2026-1042 (PIN: 4921)</button>
+              Contoh Kasus Aktif: <button type="button" onClick={() => { setSearchTicket('PPA-NGK-2026-1042'); }} className="text-teal-800 font-bold underline">PPA-NGK-2026-1042</button>
             </div>
 
             {/* Result Display */}

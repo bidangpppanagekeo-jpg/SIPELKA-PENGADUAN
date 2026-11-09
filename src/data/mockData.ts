@@ -19,38 +19,8 @@ export const EMERGENCY_CONTACTS = [
     whatsapp: '6282266355313',
     address: 'Kompleks Civic Center, Jl. Soekarno-Hatta, Mbay, Kabupaten Nagekeo, NTT',
     available: '24 Jam Siaga Kasus',
-    badge: 'Penanganan Utama',
+    badge: 'Kontak Resmi Dinas',
     isPrimary: true
-  },
-  {
-    id: 'polres_nagekeo',
-    name: 'Unit PPA Sat Reskrim Polres Nagekeo',
-    role: 'Penyelidikan & Perlindungan Hukum Kepolisian',
-    phone: '0821-4567-9110',
-    whatsapp: '6282145679110',
-    address: 'Jl. Trans Flores, Kel. Aeramo, Kec. Aesesa, Kab. Nagekeo, NTT',
-    available: '24 Jam Sentra Pelayanan Kepolisian',
-    badge: 'Penegakan Hukum'
-  },
-  {
-    id: 'rsud_aeramo',
-    name: 'IGD & Layanan Visum RSUD Aeramo',
-    role: 'Pemeriksaan Medis, Visum et Repertum & Pemulihan Fisik',
-    phone: '0386-21500',
-    whatsapp: '6281337001500',
-    address: 'Jl. Trans Flores, Aeramo, Mbay, Kec. Aesesa, Kab. Nagekeo, NTT',
-    available: '24 Jam UGD & Ambulans',
-    badge: 'Medis & Visum'
-  },
-  {
-    id: 'sapa_nasional',
-    name: 'Hotline SAPA 129 KemenPPPA',
-    role: 'Layanan Pengaduan Nasional Bebas Pulsa',
-    phone: '129',
-    whatsapp: '628111129129',
-    address: 'Kementerian Pemberdayaan Perempuan dan Perlindungan Anak RI',
-    available: '24 Jam Setiap Hari',
-    badge: 'Hotline Bebas Pulsa'
   }
 ];
 
