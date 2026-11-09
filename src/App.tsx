@@ -4,12 +4,13 @@ import {
   MapPin, CheckCircle2, Copy, Check, Send, AlertTriangle, 
   Camera, FileText, ChevronRight, ChevronLeft, ArrowLeft,
   X, MessageCircle, Clock, HeartHandshake, User, Users, Calendar,
-  AlertCircle
+  AlertCircle, BookOpen
 } from 'lucide-react';
 import { NAGEKEO_KECAMATAN_DATA, EMERGENCY_CONTACTS, CATEGORY_LABELS, INITIAL_REPORTS } from './data/mockData';
 import { ReportItem, CaseStatus, ReportCategory, NagekeoKecamatan, ConfidentialityLevel } from './types';
 import { DisguiseView } from './components/DisguiseView';
 import { AdminPortal } from './components/AdminPortal';
+import { GuidebookModal } from './components/GuidebookModal';
 import { getAccessToken, initAuth } from './services/googleAuth';
 import { getSavedSpreadsheetInfo, appendComplaintToSpreadsheet } from './services/googleSheets';
 import { sendReportToAppsScript } from './services/appsScript';
@@ -41,6 +42,7 @@ export default function App() {
   const [isDisguised, setIsDisguised] = useState<boolean>(false);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
+  const [isGuidebookOpen, setIsGuidebookOpen] = useState<boolean>(false);
 
   // Dinas Officer Gate (Only active when bidangpppanagekeo@gmail.com is logged in)
   const [currentOfficerEmail, setCurrentOfficerEmail] = useState<string | null>(() => {
@@ -399,14 +401,24 @@ export default function App() {
             </div>
           </div>
 
-          {/* Quick Hotline Call Button */}
-          <button
-            onClick={() => setIsEmergencyOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs font-semibold rounded-lg shadow-sm cursor-pointer touch-manipulation min-h-[38px]"
-          >
-            <PhoneCall className="w-3.5 h-3.5" />
-            <span>Hotline 24J</span>
-          </button>
+          {/* Header Action Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsGuidebookOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-teal-800 hover:bg-teal-700 active:bg-teal-900 text-teal-100 text-xs font-semibold rounded-lg border border-teal-700 shadow-2xs cursor-pointer min-h-[38px] transition-colors"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-teal-200" />
+              <span>Buku Panduan</span>
+            </button>
+
+            <button
+              onClick={() => setIsEmergencyOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs font-semibold rounded-lg shadow-sm cursor-pointer touch-manipulation min-h-[38px]"
+            >
+              <PhoneCall className="w-3.5 h-3.5" />
+              <span>Hotline 24J</span>
+            </button>
+          </div>
         </div>
 
         {/* Segmented Control (Buat Laporan vs Cek Status) */}
@@ -443,7 +455,29 @@ export default function App() {
       <main className="flex-1 max-w-lg w-full mx-auto p-4 space-y-4">
         {/* ================= VIEW 1: FORMULIR PENGADUAN ================= */}
         {activeTab === 'lapor' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+          <div className="space-y-3">
+            {/* Guidebook Quick Callout Banner */}
+            {formStep < 4 && (
+              <div className="bg-teal-50 border border-teal-200 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs text-teal-950">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-teal-800 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <BookOpen className="w-4 h-4 text-teal-200" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-xs text-teal-950 leading-tight">Panduan Pengisian Formulir</h3>
+                    <p className="text-[11px] text-teal-800 leading-tight">Petunjuk resmi UPTD PPA Dinas PMDP3A Nagekeo.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsGuidebookOpen(true)}
+                  className="px-3 py-1.5 bg-teal-800 hover:bg-teal-900 text-white text-xs font-semibold rounded-xl cursor-pointer shrink-0 transition-colors shadow-2xs min-h-[36px]"
+                >
+                  Buka Buku Panduan
+                </button>
+              </div>
+            )}
+
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
             {/* Step Progress Bar (Only during steps 1-3) */}
             {formStep < 4 && (
               <div className="bg-stone-50 border-b border-stone-200 px-4 py-2.5 flex items-center justify-between text-[11px] text-stone-600">
@@ -1087,7 +1121,8 @@ export default function App() {
               </div>
             )}
           </div>
-        )}
+        </div>
+      )}
 
         {/* ================= VIEW 2: CEK STATUS ADUAN ================= */}
         {activeTab === 'lacak' && (
@@ -1383,6 +1418,16 @@ export default function App() {
           onClose={() => setIsAdminOpen(false)}
         />
       )}
+
+      {/* Buku Panduan Modal */}
+      <GuidebookModal
+        isOpen={isGuidebookOpen}
+        onClose={() => setIsGuidebookOpen(false)}
+        onOpenForm={() => {
+          setActiveTab('lapor');
+          setFormStep(1);
+        }}
+      />
     </div>
   );
 }
