@@ -1212,8 +1212,9 @@ export default function App() {
             <button
               onClick={() => setIsAdminOpen(true)}
               className="px-3 py-2 bg-stone-800 hover:bg-stone-700 text-teal-300 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer min-h-[38px]"
+              title="Akses khusus petugas UPTD PPA Nagekeo"
             >
-              <Lock className="w-3.5 h-3.5" />
+              <Lock className="w-3.5 h-3.5 text-teal-400" />
               <span>Petugas Dinas</span>
             </button>
           </div>

@@ -28,6 +28,8 @@ interface AdminPortalProps {
   onClose: () => void;
 }
 
+const ALLOWED_OFFICER_EMAIL = 'bidangpppanagekeo@gmail.com';
+
 export const AdminPortal: React.FC<AdminPortalProps> = ({
   reports,
   onUpdateStatus,
@@ -35,7 +37,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onOfficerSendMessage,
   onClose
 }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true); // Logged in for officer ease of use
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [officerEmail, setOfficerEmail] = useState<string>('bidangpppanagekeo@gmail.com');
   const [pinCode, setPinCode] = useState<string>('1290');
   const [loginError, setLoginError] = useState<string>('');
@@ -72,12 +74,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // Mandatory Confirmation Modal before updating/modifying Google Sheets data
   const [showSyncConfirmModal, setShowSyncConfirmModal] = useState<boolean>(false);
 
-  // Listen to Google Auth state
+  // Listen to Google Auth state & enforce bidangpppanagekeo@gmail.com
   useEffect(() => {
     const unsubscribe = initAuth(
       (user, token) => {
-        setGoogleUser(user);
-        setGoogleToken(token);
+        const email = user.email?.trim().toLowerCase();
+        if (email === ALLOWED_OFFICER_EMAIL) {
+          setGoogleUser(user);
+          setGoogleToken(token);
+          setIsAuthenticated(true);
+        } else {
+          setGoogleUser(null);
+          setGoogleToken(null);
+        }
       },
       () => {
         setGoogleUser(null);
@@ -89,7 +98,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     };
   }, []);
 
-  // Google Sign In handler
+  // Google Sign In handler strictly for bidangpppanagekeo@gmail.com
   const handleConnectGoogle = async () => {
     setIsSigningInGoogle(true);
     setSyncError('');
@@ -97,18 +106,32 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     try {
       const res = await signInWithGoogle();
       if (res) {
+        const userEmail = res.user.email?.trim().toLowerCase() || '';
+        if (userEmail !== ALLOWED_OFFICER_EMAIL) {
+          await signOutFromGoogle();
+          setGoogleUser(null);
+          setGoogleToken(null);
+          setIsAuthenticated(false);
+          setLoginError('Akses Ditolak: Fitur Petugas Dinas & Google Sheets HANYA terbuka untuk akun email dinas resmi terdaftar.');
+          setSyncError('Akses Ditolak: Hanya akun email dinas resmi terdaftar yang dapat mengelola Google Sheets.');
+          return;
+        }
+
         setGoogleUser(res.user);
         setGoogleToken(res.accessToken);
+        setIsAuthenticated(true);
+        setLoginError('');
+
         const currentSheet = getSavedSpreadsheetInfo();
         if (!currentSheet) {
           const newSheet = await createComplaintSpreadsheet(res.accessToken);
           setActiveSheet(newSheet);
-          // Initial population
           await syncAllComplaintsToSpreadsheet(res.accessToken, newSheet.id, reports);
-          setSyncStatusMsg(`Berhasil terhubung ke Google Sheets! Dokumen "${newSheet.title}" otomatis dibuat.`);
+          setSyncStatusMsg(`Berhasil terhubung ke Google Sheets! Dokumen "${newSheet.title}" otomatis dibuat dan disinkronkan.`);
         } else {
           setActiveSheet(currentSheet);
-          setSyncStatusMsg(`Terhubung sebagai ${res.user.email}`);
+          await syncAllComplaintsToSpreadsheet(res.accessToken, currentSheet.id, reports);
+          setSyncStatusMsg(`Terhubung dengan Google Sheets. ${reports.length} data pengaduan kasus disinkronkan.`);
         }
       }
     } catch (e: any) {
@@ -171,14 +194,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  // Authentication handler
+  // Authentication handler strictly validating bidangpppanagekeo@gmail.com
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinCode === '1290' || pinCode === 'admin' || officerEmail.includes('nagekeo')) {
+    const cleanEmail = officerEmail.trim().toLowerCase();
+    
+    if (cleanEmail !== ALLOWED_OFFICER_EMAIL) {
+      setLoginError('Akses Ditolak: Fitur Petugas Dinas HANYA terbuka untuk email dinas resmi yang terdaftar.');
+      setIsAuthenticated(false);
+      return;
+    }
+
+    if (pinCode === '1290' || pinCode === 'admin') {
       setIsAuthenticated(true);
       setLoginError('');
     } else {
-      setLoginError('Kode PIN atau Email Petugas tidak sah. Gunakan PIN: 1290');
+      setLoginError('Kode PIN Petugas tidak sah. Masukkan PIN resmi: 1290');
     }
   };
 
@@ -292,20 +323,58 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </button>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4 text-xs">
+          {/* Email restriction badge */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-amber-950">
+              <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>Akses Khusus Admin Dinas PMDP3A</span>
+            </div>
+            <p className="text-[11px] text-amber-800 leading-normal">
+              Tombol & Portal ini <strong>HANYA TERBUKA</strong> untuk akun email dinas resmi terdaftar. Email lain tidak aktif.
+            </p>
+          </div>
+
+          {/* Google Direct Sign-In Button */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={handleConnectGoogle}
+              disabled={isSigningInGoogle}
+              className="w-full py-3 px-4 bg-white hover:bg-stone-50 text-stone-800 font-bold text-xs rounded-xl border border-stone-300 shadow-xs flex items-center justify-center gap-2.5 cursor-pointer min-h-[46px] transition-all touch-manipulation"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+              </svg>
+              <span>{isSigningInGoogle ? 'Menghubungkan Google...' : 'Masuk dengan Akun Google Dinas'}</span>
+            </button>
+            <p className="text-[10px] text-center text-stone-500">
+              Otomatis menyinkronkan data pengaduan dengan Google Sheets
+            </p>
+          </div>
+
+          <div className="relative flex items-center my-2">
+            <div className="flex-grow border-t border-stone-200"></div>
+            <span className="flex-shrink mx-2 text-[10px] text-stone-400 font-medium">atau masuk dengan PIN</span>
+            <div className="flex-grow border-t border-stone-200"></div>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-3.5 text-xs">
             <div>
               <label className="block font-semibold text-stone-700 mb-1">Email Dinas Petugas</label>
               <input
                 type="email"
                 value={officerEmail}
                 onChange={(e) => setOfficerEmail(e.target.value)}
-                placeholder="bidangpppanagekeo@gmail.com"
+                placeholder="Masukkan email dinas resmi"
                 className="w-full text-base sm:text-xs border border-stone-300 rounded-xl sm:rounded-lg p-3 sm:p-2.5 focus:border-teal-700 focus:outline-none min-h-[44px]"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-stone-700 mb-1">Kode Akses / PIN Petugas</label>
+              <label className="block font-semibold text-stone-700 mb-1">Kode PIN Petugas</label>
               <input
                 type="password"
                 inputMode="numeric"
@@ -316,7 +385,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               />
             </div>
 
-            {loginError && <p className="text-rose-600 font-medium">{loginError}</p>}
+            {loginError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium">
+                {loginError}
+              </div>
+            )}
 
             <button
               type="submit"
@@ -327,7 +400,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </form>
 
           <div className="text-[11px] text-stone-500 text-center bg-stone-50 p-3 rounded-xl border border-stone-200">
-            Akses resmi diperuntukkan bagi Bidang Pemberdayaan Perempuan & Perlindungan Anak Dinas PMDP3A Kab. Nagekeo. PIN cepat: <code className="font-mono font-bold text-teal-800">1290</code>
+            Akses resmi diperuntukkan bagi Bidang PPPA Dinas PMDP3A Kab. Nagekeo. PIN: <code className="font-mono font-bold text-teal-800">1290</code>
           </div>
         </div>
       </div>
@@ -353,7 +426,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-stone-400">
-                Petugas Aktif: bidangpppanagekeo@gmail.com · Mbay, Flores
+                Petugas Aktif: Tim UPTD PPA Dinas PMDP3A · Mbay, Flores
               </p>
             </div>
           </div>
