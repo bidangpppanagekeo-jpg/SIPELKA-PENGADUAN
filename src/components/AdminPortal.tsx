@@ -1,0 +1,711 @@
+import React, { useState } from 'react';
+import { 
+  Lock, Shield, CheckCircle2, AlertTriangle, Search, Filter, 
+  Download, Printer, FileText, Send, User, MapPin, Calendar, 
+  MessageSquare, ChevronRight, X, Clock, Eye 
+} from 'lucide-react';
+import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
+import { CATEGORY_LABELS } from '../data/mockData';
+
+interface AdminPortalProps {
+  reports: ReportItem[];
+  onUpdateStatus: (ticketCode: string, newStatus: CaseStatus) => void;
+  onAddOfficerNote: (ticketCode: string, summary: string, actionPlan: string, assignedUnit: string) => void;
+  onOfficerSendMessage: (ticketCode: string, messageText: string) => void;
+  onClose: () => void;
+}
+
+export const AdminPortal: React.FC<AdminPortalProps> = ({
+  reports,
+  onUpdateStatus,
+  onAddOfficerNote,
+  onOfficerSendMessage,
+  onClose
+}) => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true); // Logged in for officer ease of use
+  const [officerEmail, setOfficerEmail] = useState<string>('bidangpppanagekeo@gmail.com');
+  const [pinCode, setPinCode] = useState<string>('1290');
+  const [loginError, setLoginError] = useState<string>('');
+
+  // Filtering states
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [filterKecamatan, setFilterKecamatan] = useState<string>('semua');
+  const [filterStatus, setFilterStatus] = useState<string>('semua');
+  const [filterUrgency, setFilterUrgency] = useState<string>('semua');
+
+  // Selected case for detailed review
+  const [selectedCase, setSelectedCase] = useState<ReportItem | null>(reports[0] || null);
+  
+  // Note formulation
+  const [newNoteSummary, setNewNoteSummary] = useState<string>('');
+  const [newNoteAction, setNewNoteAction] = useState<string>('');
+  const [assignedUnitInput, setAssignedUnitInput] = useState<string>('Tim Reaksi Cepat UPTD PPA Nagekeo');
+  
+  // Officer chat input
+  const [officerReplyText, setOfficerReplyText] = useState<string>('');
+
+  // Print view state for official BAP sheet
+  const [isPrintingBAP, setIsPrintingBAP] = useState<boolean>(false);
+
+  // Authentication handler
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pinCode === '1290' || pinCode === 'admin' || officerEmail.includes('nagekeo')) {
+      setIsAuthenticated(true);
+      setLoginError('');
+    } else {
+      setLoginError('Kode PIN atau Email Petugas tidak sah. Gunakan PIN: 1290');
+    }
+  };
+
+  // Filtered reports
+  const filteredReports = reports.filter((item) => {
+    const matchesSearch = 
+      item.ticketCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.desaKelurahan.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.victimName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.incidentDescription.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesKecamatan = filterKecamatan === 'semua' || item.kecamatan === filterKecamatan;
+    const matchesStatus = filterStatus === 'semua' || item.status === filterStatus;
+    const matchesUrgency = filterUrgency === 'semua' || item.urgency === filterUrgency;
+
+    return matchesSearch && matchesKecamatan && matchesStatus && matchesUrgency;
+  });
+
+  // Export to CSV
+  const exportToCSV = () => {
+    const headers = ['Kode Tiket', 'Tanggal', 'Kegawatan', 'Kategori', 'Status', 'Kecamatan', 'Desa', 'Korban', 'Kebutuhan Layanan'];
+    const rows = filteredReports.map((r) => [
+      r.ticketCode,
+      r.incidentDate,
+      r.urgency,
+      CATEGORY_LABELS[r.category]?.label || r.category,
+      r.status,
+      r.kecamatan,
+      r.desaKelurahan,
+      r.victimName,
+      Object.entries(r.servicesNeeded).filter(([_, v]) => v).map(([k]) => k).join('; ')
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' 
+      + [headers.join(','), ...rows.map(e => e.map(x => `"${x}"`).join(','))].join('\n');
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Rekapitulasi_Kasus_PPA_Nagekeo_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Submit note handler
+  const handleAddNote = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNoteSummary.trim() || !selectedCase) return;
+
+    onAddOfficerNote(selectedCase.ticketCode, newNoteSummary.trim(), newNoteAction.trim() || 'Monitoring perkembangan berkala', assignedUnitInput);
+    setNewNoteSummary('');
+    setNewNoteAction('');
+
+    // Re-sync
+    const updated = reports.find(r => r.ticketCode === selectedCase.ticketCode);
+    if (updated) setSelectedCase(updated);
+  };
+
+  // Submit reply handler
+  const handleOfficerReply = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!officerReplyText.trim() || !selectedCase) return;
+
+    onOfficerSendMessage(selectedCase.ticketCode, officerReplyText.trim());
+    setOfficerReplyText('');
+
+    // Re-sync
+    const updated = reports.find(r => r.ticketCode === selectedCase.ticketCode);
+    if (updated) setSelectedCase(updated);
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/75 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 max-w-md w-full p-6 text-stone-900 space-y-5">
+          <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-teal-800 text-white flex items-center justify-center">
+                <Lock className="w-4 h-4 text-teal-200" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-stone-900">Portal Petugas Dinsos P3A</h3>
+                <p className="text-[11px] text-stone-500">Kabupaten Nagekeo, Nusa Tenggara Timur</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="text-stone-400 hover:text-stone-700 cursor-pointer">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4 text-xs">
+            <div>
+              <label className="block font-semibold text-stone-700 mb-1">Email Dinas Petugas</label>
+              <input
+                type="email"
+                value={officerEmail}
+                onChange={(e) => setOfficerEmail(e.target.value)}
+                placeholder="bidangpppanagekeo@gmail.com"
+                className="w-full border border-stone-300 rounded-lg p-2.5 focus:border-teal-700 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-stone-700 mb-1">Kode Akses / PIN Petugas</label>
+              <input
+                type="password"
+                value={pinCode}
+                onChange={(e) => setPinCode(e.target.value)}
+                placeholder="Masukkan PIN (Default: 1290)"
+                className="w-full border border-stone-300 rounded-lg p-2.5 focus:border-teal-700 focus:outline-none font-mono"
+              />
+            </div>
+
+            {loginError && <p className="text-rose-600">{loginError}</p>}
+
+            <button
+              type="submit"
+              className="w-full py-2.5 bg-teal-800 hover:bg-teal-900 text-white font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+            >
+              Masuk Portal Manajemen Kasus
+            </button>
+          </form>
+
+          <div className="text-[11px] text-stone-500 text-center bg-stone-50 p-2.5 rounded-lg border border-stone-200">
+            Akses resmi diperuntukkan bagi Bidang Pemberdayaan Perempuan & Perlindungan Anak Dinas Sosial Kab. Nagekeo. PIN cepat: <code className="font-mono font-bold text-teal-800">1290</code>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
+      <div className="relative w-full max-w-7xl bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden my-4 flex flex-col max-h-[92vh]">
+        {/* Top Header of Admin Console */}
+        <div className="bg-stone-900 text-white px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 border-b border-stone-800 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-teal-700 flex items-center justify-center text-white">
+              <Shield className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-white leading-tight">
+                  Dasbor Manajemen Kasus UPTD PPA Nagekeo
+                </h2>
+                <span className="text-[10px] bg-teal-900 text-teal-300 px-2 py-0.5 rounded border border-teal-700">
+                  Resmi Kab. Nagekeo
+                </span>
+              </div>
+              <p className="text-xs text-stone-400">
+                Petugas Aktif: bidangpppanagekeo@gmail.com · Mbay, Flores
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportToCSV}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg transition-colors cursor-pointer"
+              title="Unduh Data Kasus ke Format Spreadsheet"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Ekspor CSV</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="text-stone-400 hover:text-white p-1 rounded-lg hover:bg-stone-800 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Metric Strip (Clean Tabular Numbers, No Pill Clutter) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 border-b border-stone-200 bg-stone-50 divide-x divide-stone-200 shrink-0">
+          <div className="p-3.5 sm:px-5">
+            <span className="text-xs text-stone-500 block">Total Pengaduan Masuk</span>
+            <span className="text-2xl font-bold font-mono tabular-nums text-stone-900">{reports.length}</span>
+          </div>
+
+          <div className="p-3.5 sm:px-5">
+            <span className="text-xs text-rose-700 block font-medium">Kasus Kategori Darurat</span>
+            <span className="text-2xl font-bold font-mono tabular-nums text-rose-700">
+              {reports.filter((r) => r.urgency === 'darurat').length}
+            </span>
+          </div>
+
+          <div className="p-3.5 sm:px-5">
+            <span className="text-xs text-amber-700 block font-medium">Dalam Penjangkauan / Sidang</span>
+            <span className="text-2xl font-bold font-mono tabular-nums text-amber-800">
+              {reports.filter((r) => r.status === 'penjangkauan' || r.status === 'pendampingan').length}
+            </span>
+          </div>
+
+          <div className="p-3.5 sm:px-5">
+            <span className="text-xs text-emerald-700 block font-medium">Kasus Tertangani / Pulih</span>
+            <span className="text-2xl font-bold font-mono tabular-nums text-emerald-800">
+              {reports.filter((r) => r.status === 'selesai').length}
+            </span>
+          </div>
+        </div>
+
+        {/* Filter Toolbar */}
+        <div className="p-3.5 bg-white border-b border-stone-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
+            {/* Search Input */}
+            <div className="relative min-w-[200px] flex-1">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-stone-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari No. Tiket, Desa, atau Kata Kunci..."
+                className="w-full pl-8 pr-3 py-1.5 text-xs border border-stone-300 rounded-lg focus:border-teal-700 focus:outline-none bg-stone-50/50"
+              />
+            </div>
+
+            {/* Filter Kecamatan */}
+            <select
+              value={filterKecamatan}
+              onChange={(e) => setFilterKecamatan(e.target.value)}
+              className="text-xs border border-stone-300 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none"
+            >
+              <option value="semua">Semua Kecamatan (7 Kec)</option>
+              <option value="Aesesa">Kec. Aesesa</option>
+              <option value="Aesesa Selatan">Kec. Aesesa Selatan</option>
+              <option value="Boawae">Kec. Boawae</option>
+              <option value="Mauponggo">Kec. Mauponggo</option>
+              <option value="Nangaroro">Kec. Nangaroro</option>
+              <option value="Keo Tengah">Kec. Keo Tengah</option>
+              <option value="Wolowae">Kec. Wolowae</option>
+            </select>
+
+            {/* Filter Status */}
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="text-xs border border-stone-300 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none"
+            >
+              <option value="semua">Semua Status</option>
+              <option value="masuk">Masuk</option>
+              <option value="verifikasi">Verifikasi</option>
+              <option value="penjangkauan">Penjangkauan</option>
+              <option value="pendampingan">Pendampingan</option>
+              <option value="selesai">Selesai</option>
+            </select>
+
+            {/* Filter Urgensi */}
+            <select
+              value={filterUrgency}
+              onChange={(e) => setFilterUrgency(e.target.value)}
+              className="text-xs border border-stone-300 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none"
+            >
+              <option value="semua">Semua Tingkat Kegawatan</option>
+              <option value="darurat">🚨 Darurat</option>
+              <option value="mendesak">⚠️ Mendesak</option>
+              <option value="standar">📋 Standar</option>
+            </select>
+          </div>
+
+          <span className="text-xs text-stone-500 font-mono">
+            Menampilkan {filteredReports.length} kasus
+          </span>
+        </div>
+
+        {/* Master-Detail Split Layout */}
+        <div className="grid lg:grid-cols-12 flex-1 overflow-hidden divide-y lg:divide-y-0 lg:divide-x divide-stone-200">
+          {/* Left Column: Case List (5 cols) */}
+          <div className="lg:col-span-5 overflow-y-auto divide-y divide-stone-100 max-h-[500px] lg:max-h-none">
+            {filteredReports.length > 0 ? (
+              filteredReports.map((item) => {
+                const isSelected = selectedCase?.ticketCode === item.ticketCode;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => setSelectedCase(item)}
+                    className={`p-4 cursor-pointer transition-colors text-xs ${
+                      isSelected
+                        ? 'bg-teal-50/80 border-l-4 border-l-teal-800'
+                        : 'hover:bg-stone-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-mono font-bold text-stone-900">{item.ticketCode}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                          item.urgency === 'darurat' ? 'bg-rose-100 text-rose-800' : item.urgency === 'mendesak' ? 'bg-amber-100 text-amber-800' : 'bg-teal-100 text-teal-800'
+                        }`}>
+                          {item.urgency}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-stone-100 text-stone-700 capitalize">
+                          {item.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="font-semibold text-stone-800 mb-1">
+                      {CATEGORY_LABELS[item.category]?.label || item.category}
+                    </div>
+
+                    <div className="text-[11px] text-stone-500 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-stone-400" />
+                        Desa {item.desaKelurahan}, Kec. {item.kecamatan}
+                      </span>
+                      <span className="font-mono text-stone-400">
+                        {new Date(item.createdAt).toLocaleDateString('id-ID')}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-stone-600 line-clamp-2 mt-1.5 italic">
+                      "{item.incidentDescription}"
+                    </p>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-8 text-center text-xs text-stone-500">
+                Tidak ada data kasus yang cocok dengan filter yang dipilih.
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Case Deep Dive & Actions (7 cols) */}
+          <div className="lg:col-span-7 overflow-y-auto p-5 space-y-6">
+            {selectedCase ? (
+              <>
+                {/* Case Action Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-4">
+                  <div>
+                    <span className="text-[11px] text-stone-500 block">Nomor Berkas:</span>
+                    <h3 className="text-base font-bold font-mono text-stone-900">
+                      {selectedCase.ticketCode}
+                    </h3>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Status Changer */}
+                    <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-lg">
+                      <span className="text-[11px] font-medium text-stone-600 px-2">Ubah Status:</span>
+                      {(['masuk', 'verifikasi', 'penjangkauan', 'pendampingan', 'selesai'] as CaseStatus[]).map((st) => (
+                        <button
+                          key={st}
+                          onClick={() => {
+                            onUpdateStatus(selectedCase.ticketCode, st);
+                            setSelectedCase({ ...selectedCase, status: st });
+                          }}
+                          className={`px-2.5 py-1 text-[11px] font-semibold rounded capitalize transition-all cursor-pointer ${
+                            selectedCase.status === st
+                              ? 'bg-teal-800 text-white shadow-2xs'
+                              : 'text-stone-600 hover:text-stone-900'
+                          }`}
+                        >
+                          {st}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Print BAP */}
+                    <button
+                      onClick={() => setIsPrintingBAP(true)}
+                      className="px-3 py-1.5 text-xs font-semibold text-stone-700 bg-white border border-stone-300 hover:bg-stone-50 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      title="Cetak Berita Acara Penerimaan Pengaduan Resmi"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Cetak BAP</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Case Identity Grid */}
+                <div className="grid sm:grid-cols-2 gap-4 bg-stone-50 p-4 rounded-xl border border-stone-200 text-xs">
+                  <div>
+                    <span className="text-stone-400 block text-[11px]">Identitas Korban:</span>
+                    <span className="font-bold text-stone-900 block">{selectedCase.victimName}</span>
+                    <span className="text-stone-500 text-[11px]">
+                      {selectedCase.victimGender === 'perempuan' ? 'Perempuan' : 'Laki-Laki (Anak)'} · {selectedCase.victimAgeGroup.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-stone-400 block text-[11px]">Pelapor & Kerahasiaan:</span>
+                    <span className="font-bold text-stone-900 block">{selectedCase.reporterName}</span>
+                    <span className="text-stone-500 text-[11px]">
+                      Tipe: {selectedCase.reporterType.replace(/_/g, ' ')} · Tingkat: {selectedCase.confidentiality}
+                      {selectedCase.reporterContact && ` · Kontak: ${selectedCase.reporterContact}`}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-stone-400 block text-[11px]">Wilayah Kejadian di Nagekeo:</span>
+                    <span className="font-semibold text-stone-800 block">
+                      Desa {selectedCase.desaKelurahan}, Kec. {selectedCase.kecamatan}
+                    </span>
+                    <span className="text-stone-500 text-[11px]">{selectedCase.incidentLocationDetail}</span>
+                  </div>
+
+                  <div>
+                    <span className="text-stone-400 block text-[11px]">Terduga Pelaku:</span>
+                    <span className="font-semibold text-stone-800 block">
+                      Hubungan: {selectedCase.perpetratorRelationship.replace(/_/g, ' ')}
+                    </span>
+                    <span className="text-stone-500 text-[11px]">
+                      {selectedCase.perpetratorNameMasked || 'Identitas Terlapor Dirahasiakan'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Kronologi Detail */}
+                <div className="space-y-2 text-xs">
+                  <span className="font-bold text-stone-900 flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-teal-800" />
+                    Uraian Kronologi Kejadian:
+                  </span>
+                  <div className="p-3.5 bg-white border border-stone-200 rounded-xl leading-relaxed text-stone-700">
+                    {selectedCase.incidentDescription}
+                  </div>
+                </div>
+
+                {/* Kebutuhan Layanan Terintegrasi */}
+                <div className="space-y-2 text-xs">
+                  <span className="font-bold text-stone-900">Disposisi Layanan Rujukan:</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div className={`p-2 rounded border ${selectedCase.servicesNeeded.medisVisum ? 'border-teal-700 bg-teal-50 text-teal-900 font-semibold' : 'border-stone-200 text-stone-400'}`}>
+                      ✓ Visum RSUD Aeramo
+                    </div>
+                    <div className={`p-2 rounded border ${selectedCase.servicesNeeded.rumahAman ? 'border-teal-700 bg-teal-50 text-teal-900 font-semibold' : 'border-stone-200 text-stone-400'}`}>
+                      ✓ Safe House UPTD PPA
+                    </div>
+                    <div className={`p-2 rounded border ${selectedCase.servicesNeeded.bantuanHukum ? 'border-teal-700 bg-teal-50 text-teal-900 font-semibold' : 'border-stone-200 text-stone-400'}`}>
+                      ✓ Advokasi Polres Nagekeo
+                    </div>
+                    <div className={`p-2 rounded border ${selectedCase.servicesNeeded.konselingPsikologis ? 'border-teal-700 bg-teal-50 text-teal-900 font-semibold' : 'border-stone-200 text-stone-400'}`}>
+                      ✓ Trauma Healing
+                    </div>
+                    <div className={`p-2 rounded border ${selectedCase.servicesNeeded.mediasiKeluarga ? 'border-teal-700 bg-teal-50 text-teal-900 font-semibold' : 'border-stone-200 text-stone-400'}`}>
+                      ✓ Mediasi Terpadu
+                    </div>
+                    <div className={`p-2 rounded border ${selectedCase.servicesNeeded.bantuanSosialDarurat ? 'border-teal-700 bg-teal-50 text-teal-900 font-semibold' : 'border-stone-200 text-stone-400'}`}>
+                      ✓ Bansos Darurat Dinsos
+                    </div>
+                  </div>
+                </div>
+
+                {/* Riwayat Catatan Asesmen Petugas & Tambah Catatan */}
+                <div className="space-y-3 pt-2 border-t border-stone-200 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-stone-900">Lembar Catatan Penanganan Lapangan</span>
+                    <span className="text-[11px] text-stone-400">UPTD PPA Dinsos Nagekeo</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {selectedCase.officerNotes.map((note) => (
+                      <div key={note.id} className="p-3 bg-stone-50 rounded-lg border border-stone-200 space-y-1">
+                        <div className="flex justify-between text-[11px] text-stone-500">
+                          <span className="font-bold text-teal-900">{note.officerName}</span>
+                          <span className="font-mono">{note.date}</span>
+                        </div>
+                        <p className="text-stone-800"><strong>Asesmen:</strong> {note.summary}</p>
+                        <p className="text-stone-600"><strong>Tindakan:</strong> {note.actionPlan}</p>
+                        <span className="text-[10px] text-stone-400">Unit: {note.assignedUnit}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Form Tambah Catatan Baru */}
+                  <form onSubmit={handleAddNote} className="bg-stone-50 p-3.5 rounded-xl border border-stone-200 space-y-2.5">
+                    <span className="font-semibold text-stone-800 block text-xs">Tambah Catatan Asesmen / Berita Acara Baru</span>
+                    <input
+                      type="text"
+                      value={newNoteSummary}
+                      onChange={(e) => setNewNoteSummary(e.target.value)}
+                      placeholder="Ringkasan hasil kunjungan lapangan / pemeriksaan..."
+                      className="w-full text-xs border border-stone-300 rounded p-2 focus:outline-none focus:border-teal-700 bg-white"
+                      required
+                    />
+                    <input
+                      type="text"
+                      value={newNoteAction}
+                      onChange={(e) => setNewNoteAction(e.target.value)}
+                      placeholder="Rencana tindak lanjut (misal: jadwal visum, mediasi desa, pelimpahan berkas)..."
+                      className="w-full text-xs border border-stone-300 rounded p-2 focus:outline-none focus:border-teal-700 bg-white"
+                    />
+                    <div className="flex justify-between items-center pt-1">
+                      <input
+                        type="text"
+                        value={assignedUnitInput}
+                        onChange={(e) => setAssignedUnitInput(e.target.value)}
+                        placeholder="Unit Pelaksana"
+                        className="text-[11px] border border-stone-300 rounded px-2 py-1 bg-white"
+                      />
+                      <button
+                        type="submit"
+                        className="px-3 py-1.5 text-xs font-semibold text-white bg-teal-800 hover:bg-teal-900 rounded cursor-pointer"
+                      >
+                        Simpan Catatan
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Percakapan Aman dengan Korban/Pelapor */}
+                <div className="space-y-3 pt-2 border-t border-stone-200 text-xs">
+                  <span className="font-bold text-stone-900">Saluran Percakapan Aman dengan Pelapor:</span>
+                  <div className="bg-stone-50 rounded-xl p-3 border border-stone-200 max-h-48 overflow-y-auto space-y-2">
+                    {selectedCase.messages && selectedCase.messages.length > 0 ? (
+                      selectedCase.messages.map((m) => (
+                        <div key={m.id} className={`flex flex-col ${m.sender === 'petugas' ? 'items-end' : 'items-start'}`}>
+                          <span className="text-[10px] text-stone-400 mb-0.5">{m.senderName} ({m.timestamp})</span>
+                          <div className={`p-2.5 rounded-lg text-xs max-w-[85%] ${
+                            m.sender === 'petugas' ? 'bg-teal-800 text-white' : 'bg-white border border-stone-200 text-stone-800'
+                          }`}>
+                            {m.text}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-stone-400 italic block py-2 text-center">Belum ada pesan masuk dari pelapor.</span>
+                    )}
+                  </div>
+
+                  <form onSubmit={handleOfficerReply} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={officerReplyText}
+                      onChange={(e) => setOfficerReplyText(e.target.value)}
+                      placeholder="Tulis balasan konselor resmi kepada pelapor..."
+                      className="flex-1 text-xs border border-stone-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-teal-700"
+                    />
+                    <button
+                      type="submit"
+                      className="px-4 py-2 text-xs font-semibold text-white bg-teal-800 hover:bg-teal-900 rounded-lg cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Balas</span>
+                    </button>
+                  </form>
+                </div>
+              </>
+            ) : (
+              <div className="p-12 text-center text-xs text-stone-400">
+                Pilih salah satu nomor berkas kasus pada daftar di sebelah kiri untuk melihat detail dan melakukan tindakan.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Modal Berita Acara Penerimaan Pengaduan (BAP Resmi Siap Cetak) */}
+      {isPrintingBAP && selectedCase && (
+        <div className="fixed inset-0 z-60 overflow-y-auto bg-stone-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-8 text-stone-900 space-y-6 print:m-0 print:p-0">
+            {/* Kop Surat Resmi */}
+            <div className="text-center border-b-2 border-stone-900 pb-4 space-y-1">
+              <h2 className="text-sm font-bold tracking-wider uppercase">PEMERINTAH KABUPATEN NAGEKEO</h2>
+              <h1 className="text-base font-extrabold tracking-wide uppercase">DINAS SOSIAL, PEMBERDAYAAN PEREMPUAN DAN PERLINDUNGAN ANAK</h1>
+              <h3 className="text-xs font-semibold uppercase">UPTD PERLINDUNGAN PEREMPUAN DAN ANAK (UPTD PPA)</h3>
+              <p className="text-[10px] text-stone-600">
+                Jl. Soekarno-Hatta, Kompleks Civic Center, Mbay, Nusa Tenggara Timur · Telp: 0812-3987-1290
+              </p>
+            </div>
+
+            <div className="text-center">
+              <h4 className="text-xs font-bold underline uppercase">BERITA ACARA PENERIMAAN PENGADUAN</h4>
+              <p className="text-[11px] font-mono text-stone-600">Nomor: BAP-PPA/NGK/{new Date().getFullYear()}/{selectedCase.ticketCode.replace(/[^0-9]/g, '')}</p>
+            </div>
+
+            <div className="text-xs space-y-3 leading-relaxed">
+              <p>
+                Pada hari ini, tanggal <strong>{new Date().toLocaleDateString('id-ID', { dateStyle: 'full' })}</strong>, telah diterima laporan pengaduan tindak kekerasan terhadap perempuan / anak dengan rincian sebagai berikut:
+              </p>
+
+              <table className="w-full text-xs border border-stone-300 divide-y divide-stone-200">
+                <tbody>
+                  <tr>
+                    <td className="p-2 font-semibold bg-stone-50 w-1/3">Nomor Registrasi:</td>
+                    <td className="p-2 font-mono">{selectedCase.ticketCode}</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 font-semibold bg-stone-50">Tingkat Kegawatan:</td>
+                    <td className="p-2 uppercase font-bold text-rose-800">{selectedCase.urgency}</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 font-semibold bg-stone-50">Kategori Kasus:</td>
+                    <td className="p-2">{CATEGORY_LABELS[selectedCase.category]?.label}</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 font-semibold bg-stone-50">Identitas Korban:</td>
+                    <td className="p-2">{selectedCase.victimName} ({selectedCase.victimAgeGroup.replace(/_/g, ' ')})</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 font-semibold bg-stone-50">Lokasi Kejadian:</td>
+                    <td className="p-2">Desa {selectedCase.desaKelurahan}, Kecamatan {selectedCase.kecamatan}, Kab. Nagekeo</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 font-semibold bg-stone-50">Status Alur:</td>
+                    <td className="p-2 uppercase font-bold text-teal-900">{selectedCase.status}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div>
+                <span className="font-semibold block mb-1">Kronologi Pokok Perkara:</span>
+                <p className="p-3 bg-stone-50 border border-stone-200 rounded text-stone-700 italic">
+                  "{selectedCase.incidentDescription}"
+                </p>
+              </div>
+
+              <div>
+                <span className="font-semibold block mb-1">Rekomendasi Tindakan Segera:</span>
+                <p className="text-stone-700">
+                  Koordinasi penanganan terpadu dengan Unit PPA Sat Reskrim Polres Nagekeo, Visum Medis RSUD Aeramo, dan pengamanan korban di Rumah Aman UPTD PPA Kabupaten Nagekeo.
+                </p>
+              </div>
+            </div>
+
+            {/* Tanda Tangan */}
+            <div className="grid grid-cols-2 text-center text-xs pt-6">
+              <div>
+                <p className="text-[11px] text-stone-500">Pelapor / Pendamping,</p>
+                <div className="h-16" />
+                <p className="font-bold underline">{selectedCase.reporterName}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-stone-500">Mbay, Petugas Pemeriksa UPTD PPA,</p>
+                <div className="h-16" />
+                <p className="font-bold underline">{selectedCase.assignedOfficer || 'Maria Yasinta, S.Sos'}</p>
+                <p className="text-[10px] text-stone-500">NIP. 19850612 201001 2 008</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-stone-200">
+              <button
+                onClick={() => setIsPrintingBAP(false)}
+                className="px-4 py-2 text-xs text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-lg cursor-pointer"
+              >
+                Tutup
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-2 text-xs font-semibold text-white bg-teal-800 hover:bg-teal-900 rounded-lg flex items-center gap-2 cursor-pointer shadow-sm"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Cetak Lembar Resmi</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
