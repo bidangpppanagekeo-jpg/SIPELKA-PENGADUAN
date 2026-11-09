@@ -72,6 +72,25 @@ export default function App() {
       if (unsubscribe) unsubscribe();
     };
   }, []);
+  // Check URL parameter ?admin, ?petugas, or ?dinas for initial dinas officer login
+  const [logoClickCount, setLogoClickCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (window.location.search.includes('admin') || window.location.search.includes('petugas') || window.location.search.includes('dinas')) {
+      setIsAdminOpen(true);
+    }
+  }, []);
+
+  const handleLogoClick = () => {
+    const nextCount = logoClickCount + 1;
+    if (nextCount >= 3) {
+      setIsAdminOpen(true);
+      setLogoClickCount(0);
+    } else {
+      setLogoClickCount(nextCount);
+      setTimeout(() => setLogoClickCount(0), 2000);
+    }
+  };
 
   // Form Step State (1: Data Pelapor & Privasi -> 2: Data Korban & Waktu -> 3: Data Pelaku & Kejadian -> 4: Sukses)
   const [formStep, setFormStep] = useState<number>(1);
@@ -365,7 +384,7 @@ export default function App() {
 
         {/* Main Brand Area */}
         <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <div onClick={handleLogoClick} className="flex items-center gap-2.5 cursor-pointer select-none">
             <div className="w-9 h-9 rounded-xl bg-teal-800 flex items-center justify-center text-teal-200 shadow-sm shrink-0">
               <Shield className="w-5 h-5" />
             </div>
@@ -1243,22 +1262,14 @@ export default function App() {
               <span>Kontak Darurat</span>
             </button>
 
-            {isDinasOfficer ? (
+            {isDinasOfficer && (
               <button
                 onClick={() => setIsAdminOpen(true)}
                 className="px-3 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer min-h-[38px] shadow-sm"
                 title="Portal Manajemen Kasus UPTD PPA Nagekeo"
               >
                 <Shield className="w-4 h-4 text-emerald-300" />
-                <span>Petugas Dinas (Aktif)</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => setIsAdminOpen(true)}
-                className="p-2 text-stone-600 hover:text-stone-400 cursor-pointer rounded-lg transition-colors min-h-[38px] flex items-center justify-center"
-                title="Akses Masuk Petugas Dinas PMDP3A"
-              >
-                <Lock className="w-3.5 h-3.5" />
+                <span>Petugas Dinas</span>
               </button>
             )}
           </div>
