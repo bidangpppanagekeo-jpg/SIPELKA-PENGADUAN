@@ -40,8 +40,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onOfficerLoginChange
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [officerEmail, setOfficerEmail] = useState<string>('bidangpppanagekeo@gmail.com');
-  const [pinCode, setPinCode] = useState<string>('1290');
+  const [officerEmail, setOfficerEmail] = useState<string>('');
+  const [pinCode, setPinCode] = useState<string>('');
   const [loginError, setLoginError] = useState<string>('');
 
   // Filtering states
@@ -214,12 +214,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       return;
     }
 
-    if (pinCode === '1290' || pinCode === 'admin') {
+    if (pinCode === '111217' || pinCode === 'admin') {
       setIsAuthenticated(true);
       setLoginError('');
       onOfficerLoginChange?.(ALLOWED_OFFICER_EMAIL);
     } else {
-      setLoginError('Kode PIN Petugas tidak sah. Masukkan PIN resmi: 1290');
+      setLoginError('Kode PIN Petugas tidak sah. Silakan periksa kembali PIN Anda.');
     }
   };
 
@@ -390,7 +390,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 inputMode="numeric"
                 value={pinCode}
                 onChange={(e) => setPinCode(e.target.value)}
-                placeholder="Masukkan PIN (Default: 1290)"
+                placeholder="Masukkan Kode PIN Petugas"
                 className="w-full text-base sm:text-xs border border-stone-300 rounded-xl sm:rounded-lg p-3 sm:p-2.5 focus:border-teal-700 focus:outline-none font-mono min-h-[44px]"
               />
             </div>
@@ -410,7 +410,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </form>
 
           <div className="text-[11px] text-stone-500 text-center bg-stone-50 p-3 rounded-xl border border-stone-200">
-            Akses resmi diperuntukkan bagi Bidang PPPA Dinas PMDP3A Kab. Nagekeo. PIN: <code className="font-mono font-bold text-teal-800">1290</code>
+            Akses resmi diperuntukkan bagi Bidang PPPA Dinas PMDP3A Kab. Nagekeo.
           </div>
         </div>
       </div>
