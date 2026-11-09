@@ -5,13 +5,13 @@ import {
   MessageSquare, ChevronRight, X, Clock, Eye, ExternalLink, RefreshCw,
   Table2, Check, AlertCircle, LogOut
 } from 'lucide-react';
-import { User as FirebaseUser } from 'firebase/auth';
 import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
 import { CATEGORY_LABELS } from '../data/mockData';
 import { 
   initAuth, 
   signInWithGoogle, 
-  signOutFromGoogle 
+  signOutFromGoogle,
+  GoogleAuthUser 
 } from '../services/googleAuth';
 import { 
   createComplaintSpreadsheet, 
@@ -65,7 +65,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [isPrintingBAP, setIsPrintingBAP] = useState<boolean>(false);
 
   // Google Sheets Workspace State
-  const [googleUser, setGoogleUser] = useState<FirebaseUser | null>(null);
+  const [googleUser, setGoogleUser] = useState<GoogleAuthUser | null>(null);
   const [googleToken, setGoogleToken] = useState<string | null>(null);
   const [isSigningInGoogle, setIsSigningInGoogle] = useState<boolean>(false);
   const [activeSheet, setActiveSheet] = useState<ActiveSpreadsheetInfo | null>(() => getSavedSpreadsheetInfo());
