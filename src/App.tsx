@@ -10,6 +10,8 @@ import { NAGEKEO_KECAMATAN_DATA, EMERGENCY_CONTACTS, CATEGORY_LABELS, INITIAL_RE
 import { ReportItem, CaseStatus, ReportCategory, NagekeoKecamatan, ConfidentialityLevel } from './types';
 import { DisguiseView } from './components/DisguiseView';
 import { AdminPortal } from './components/AdminPortal';
+import { getAccessToken } from './services/googleAuth';
+import { getSavedSpreadsheetInfo, appendComplaintToSpreadsheet } from './services/googleSheets';
 
 export default function App() {
   // Load reports from localStorage with fallback
@@ -216,6 +218,19 @@ export default function App() {
     setReports([newReport, ...reports]);
     setSubmittedTicket(newReport);
     setFormStep(4); // Success step
+
+    // Auto-sync ke Google Sheets jika sesi petugas aktif & spreadsheet terkonfigurasi
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const activeSheet = getSavedSpreadsheetInfo();
+        if (token && activeSheet?.id) {
+          await appendComplaintToSpreadsheet(token, activeSheet.id, newReport);
+        }
+      } catch (err) {
+        console.warn('Auto-sync Google Sheets skipped:', err);
+      }
+    })();
   };
 
   // Search case tracker
@@ -981,6 +996,13 @@ export default function App() {
                     <div><strong>Lokasi:</strong> Desa {submittedTicket.desaKelurahan}, Kec. {submittedTicket.kecamatan}</div>
                   </div>
 
+                  {getSavedSpreadsheetInfo() && (
+                    <div className="flex items-center gap-1.5 text-[10px] text-emerald-800 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 font-medium">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                      <span className="truncate">Terhubung ke Google Sheets: {getSavedSpreadsheetInfo()?.title}</span>
+                    </div>
+                  )}
+
                   <div className="pt-2 border-t border-stone-200 text-xs">
                     <button
                       onClick={() => {
@@ -998,7 +1020,7 @@ export default function App() {
 
                 {/* WhatsApp Direct Option */}
                 <a
-                  href={`https://wa.me/6281239871290?text=Halo%20UPTD%20PPA%20Dinas%20PMDP3A%20Kabupaten%20Nagekeo,%20saya%20telah%20mengirim%20pengaduan%20dengan%20Kode%20Tiket:%20${submittedTicket.ticketCode}%20atas%20nama%20korban%20${encodeURIComponent(submittedTicket.victimName)}.%20Mohon%20bantuan%20segera.`}
+                  href={`https://wa.me/6282266355313?text=Halo%20UPTD%20PPA%20Dinas%20PMDP3A%20Kabupaten%20Nagekeo,%20saya%20telah%20mengirim%20pengaduan%20dengan%20Kode%20Tiket:%20${submittedTicket.ticketCode}%20atas%20nama%20korban%20${encodeURIComponent(submittedTicket.victimName)}.%20Mohon%20bantuan%20segera.`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-sm min-h-[46px] touch-manipulation"
