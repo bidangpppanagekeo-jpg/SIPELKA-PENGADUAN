@@ -34,8 +34,8 @@ export const GuidebookModal: React.FC<GuidebookModalProps> = ({
       a: 'TIDAK ADA BIAYA (GRATIS). Seluruh layanan penjangkauan korban, konseling psikologis, pendampingan hukum, dan pengamanan korban oleh Dinas PMDP3A Kab. Nagekeo tidak dipungut biaya apapun.'
     },
     {
-      q: 'Bagaimana cara melacak status perkembangan pengaduan saya?',
-      a: 'Setelah formulir dikirim, Anda akan menerima Nomor Tiket Pengaduan (Contoh: PPA-NGK-2026-8111). Pilih menu "Lacak Status" pada bagian atas aplikasi dan masukkan nomor tiket tersebut.'
+      q: 'Bagaimana proses tindak lanjut setelah pengaduan dikirim?',
+      a: 'Setelah formulir dikirim, petugas UPTD PPA Dinas PMDP3A Kab. Nagekeo akan segera memverifikasi laporan dan menghubungi nomor kontak/WhatsApp yang Anda cantumkan untuk koordinasi penanganan.'
     },
     {
       q: 'Apakah bisa melaporkan kejadian kekerasan yang dialami oleh tetangga/kerabat?',
@@ -243,20 +243,20 @@ export const GuidebookModal: React.FC<GuidebookModalProps> = ({
                   <span className="w-7 h-7 rounded-xl bg-emerald-800 text-white flex items-center justify-center text-xs font-mono shadow-xs shrink-0">
                     4
                   </span>
-                  <h3>SETELAH FORMULIR TERKIRIM (Bukti Lapor & Pelacakan)</h3>
+                  <h3>SETELAH FORMULIR TERKIRIM (Tanda Bukti & Konfirmasi Petugas)</h3>
                 </div>
 
                 <div className="space-y-2 text-xs text-emerald-900">
                   <p className="font-semibold">Setelah Anda mengklik tombol "Kirim Pengaduan Lengkap":</p>
                   <ul className="list-disc pl-4 space-y-1.5 marker:text-emerald-800">
                     <li>
-                      <strong>Bukti Lapor Resmi:</strong> Layar akan menampilkan Bukti Lapor Pengaduan yang berisi <strong>Nomor Tiket Pengaduan</strong> (Contoh: <code>PPA-NGK-2026-8111</code>).
+                      <strong>Bukti Lapor Resmi:</strong> Layar akan menampilkan Bukti Lapor Pengaduan yang berisi <strong>Nomor Tiket Pengaduan</strong> (Contoh: <code>PPA-NGK-2026-8111</code>) sebagai tanda pengenal resmi berkas aduan Anda.
                     </li>
                     <li>
-                      <strong>Tombol WhatsApp Cepat:</strong> Anda dapat mengklik tombol <em>"Kirim Konfirmasi Cepat ke WhatsApp UPTD PPA"</em> untuk langsung terhubung dengan nomor petugas dinas (<code>0822-6635-5313</code>).
+                      <strong>Tombol WhatsApp Cepat:</strong> Anda dapat langsung mengklik tombol <em>"Kirim Konfirmasi Cepat ke WhatsApp UPTD PPA"</em> untuk menghubungi tim petugas dinas (<code>0822-6635-5313</code>).
                     </li>
                     <li>
-                      <strong>Melacak Perkembangan:</strong> Gunakan menu <em>"Lacak Status Pengaduan"</em> pada aplikasi dan masukkan Nomor Tiket Pengaduan Anda tanpa perlu mengingat PIN.
+                      <strong>Tindak Lanjut oleh Petugas:</strong> Pengaduan langsung masuk ke sistem Dinas PMDP3A Nagekeo, dan petugas UPTD PPA akan segera menghubungi nomor kontak Anda untuk proses verifikasi serta pendampingan langsung.
                     </li>
                   </ul>
                 </div>
