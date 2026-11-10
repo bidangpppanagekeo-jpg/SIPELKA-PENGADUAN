@@ -14,6 +14,14 @@ import { GuidebookModal } from './components/GuidebookModal';
 import { getAccessToken, initAuth } from './services/googleAuth';
 import { getSavedSpreadsheetInfo, appendComplaintToSpreadsheet } from './services/googleSheets';
 import { sendReportToAppsScript } from './services/appsScript';
+import { 
+  saveReportToFirestore, 
+  subscribeToReports, 
+  updateReportInFirestore, 
+  deleteReportFromFirestore, 
+  getReportByTicketCode,
+  seedInitialReportsIfEmpty 
+} from './services/firestoreService';
 
 const OFFICIAL_DINAS_EMAIL = 'bidangpppanagekeo@gmail.com';
 
@@ -36,6 +44,19 @@ export default function App() {
       console.error(e);
     }
   }, [reports]);
+
+  // Real-time synchronization from Firestore cloud across all devices
+  useEffect(() => {
+    seedInitialReportsIfEmpty();
+    const unsubscribe = subscribeToReports((liveReports) => {
+      if (liveReports && liveReports.length > 0) {
+        setReports(liveReports);
+      }
+    });
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   // Main navigation tab: 'lapor' (Form) | 'lacak' (Check Status)
   const [activeTab, setActiveTab] = useState<'lapor' | 'lacak'>('lapor');
@@ -275,41 +296,60 @@ export default function App() {
     setSubmittedTicket(newReport);
     setFormStep(4); // Success step
 
-    // Auto-sync ke Google Apps Script Web App & Google Sheets
+    // Auto-sync ke Cloud Firestore, Google Apps Script Web App, dan Google Sheets
     (async () => {
       try {
+        // 1. Simpan ke Cloud Firestore agar langsung terbaca di Dasbor Manajemen Kasus Dinas secara realtime
+        await saveReportToFirestore(newReport);
+
+        // 2. Kirim ke Google Apps Script Web App (jika terpasang)
         await sendReportToAppsScript(newReport);
+
+        // 3. Simpan ke Google Sheets aktif jika akun dinas telah terautentikasi
         const token = await getAccessToken();
         const activeSheet = getSavedSpreadsheetInfo();
         if (token && activeSheet?.id) {
           await appendComplaintToSpreadsheet(token, activeSheet.id, newReport);
         }
       } catch (err) {
-        console.warn('Auto-sync Apps Script / Google Sheets skipped:', err);
+        console.warn('Auto-sync notice:', err);
       }
     })();
   };
 
-  // Search case tracker
-  const handleSearchCase = (e: React.FormEvent) => {
+  // Search case tracker (Cek status laporan via tiket)
+  const handleSearchCase = async (e: React.FormEvent) => {
     e.preventDefault();
     setTrackerError('');
     const tCode = searchTicket.trim().toUpperCase();
 
+    // Cek memori lokal terlebih dahulu
     const found = reports.find(
       (r) => r.ticketCode.toUpperCase() === tCode
     );
 
     if (found) {
       setFoundReport(found);
-    } else {
+      return;
+    }
+
+    // Jika belum ada di memori lokal, tarik langsung dari Cloud Firestore
+    try {
+      const fromCloud = await getReportByTicketCode(tCode);
+      if (fromCloud) {
+        setFoundReport(fromCloud);
+      } else {
+        setTrackerError('Nomor Tiket tidak ditemukan. Silakan periksa kembali nomor tiket Anda.');
+        setFoundReport(null);
+      }
+    } catch {
       setTrackerError('Nomor Tiket tidak ditemukan. Silakan periksa kembali nomor tiket Anda.');
       setFoundReport(null);
     }
   };
 
   // Send message in case tracker
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || !foundReport) return;
 
@@ -321,18 +361,29 @@ export default function App() {
       timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WITA'
     };
 
+    const updatedMessages = [...foundReport.messages, newMsg];
+
     const updatedReports = reports.map((r) =>
       r.ticketCode === foundReport.ticketCode
-        ? { ...r, messages: [...r.messages, newMsg], updatedAt: new Date().toISOString() }
+        ? { ...r, messages: updatedMessages, updatedAt: new Date().toISOString() }
         : r
     );
 
     setReports(updatedReports);
     setFoundReport({
       ...foundReport,
-      messages: [...foundReport.messages, newMsg]
+      messages: updatedMessages
     });
     setChatInput('');
+
+    // Persist ke Cloud Firestore secara realtime
+    try {
+      await updateReportInFirestore(foundReport.ticketCode, {
+        messages: updatedMessages
+      });
+    } catch (err) {
+      console.warn('Gagal update pesan ke Firestore:', err);
+    }
   };
 
   // Reset form
@@ -1369,58 +1420,66 @@ export default function App() {
                 r.ticketCode === ticketCode ? { ...r, status: newStatus, updatedAt: new Date().toISOString() } : r
               )
             );
+            updateReportInFirestore(ticketCode, { status: newStatus });
           }}
           onAddOfficerNote={(ticketCode, summary, actionPlan, assignedUnit) => {
+            const newNote = {
+              id: `note_${Date.now()}`,
+              officerName: 'Maria Yasinta, S.Sos (Konselor Dinas PMDP3A)',
+              date: new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }),
+              summary,
+              actionPlan,
+              assignedUnit
+            };
             setReports((prev) =>
-              prev.map((r) =>
-                r.ticketCode === ticketCode
-                  ? {
-                      ...r,
-                      officerNotes: [
-                        ...r.officerNotes,
-                        {
-                          id: `note_${Date.now()}`,
-                          officerName: 'Maria Yasinta, S.Sos (Konselor Dinas PMDP3A)',
-                          date: new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }),
-                          summary,
-                          actionPlan,
-                          assignedUnit
-                        }
-                      ],
-                      updatedAt: new Date().toISOString()
-                    }
-                  : r
-              )
+              prev.map((r) => {
+                if (r.ticketCode === ticketCode) {
+                  const updatedNotes = [...r.officerNotes, newNote];
+                  updateReportInFirestore(ticketCode, { officerNotes: updatedNotes });
+                  return {
+                    ...r,
+                    officerNotes: updatedNotes,
+                    updatedAt: new Date().toISOString()
+                  };
+                }
+                return r;
+              })
             );
           }}
           onOfficerSendMessage={(ticketCode, text) => {
+            const newMsg = {
+              id: `msg_${Date.now()}`,
+              sender: 'petugas' as const,
+              senderName: 'Konselor UPTD PPA Dinas PMDP3A',
+              text,
+              timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WITA'
+            };
             setReports((prev) =>
-              prev.map((r) =>
-                r.ticketCode === ticketCode
-                  ? {
-                      ...r,
-                      messages: [
-                        ...r.messages,
-                        {
-                          id: `msg_${Date.now()}`,
-                          sender: 'petugas',
-                          senderName: 'Konselor UPTD PPA Dinas PMDP3A',
-                          text,
-                          timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WITA'
-                        }
-                      ],
-                      updatedAt: new Date().toISOString()
-                    }
-                  : r
-              )
+              prev.map((r) => {
+                if (r.ticketCode === ticketCode) {
+                  const updatedMessages = [...r.messages, newMsg];
+                  updateReportInFirestore(ticketCode, { messages: updatedMessages });
+                  return {
+                    ...r,
+                    messages: updatedMessages,
+                    updatedAt: new Date().toISOString()
+                  };
+                }
+                return r;
+              })
             );
           }}
           onDeleteReport={(ticketCode) => {
             setReports((prev) => prev.filter((r) => r.ticketCode !== ticketCode));
+            deleteReportFromFirestore(ticketCode);
           }}
           onClose={() => setIsAdminOpen(false)}
           onReportsSynced={(newReports) => {
             setReports(newReports);
+            // Simpan sinkronisasi ke Firestore agar seluruh sesi terupdate
+            for (const r of newReports) {
+              saveReportToFirestore(r);
+            }
           }}
         />
       )}

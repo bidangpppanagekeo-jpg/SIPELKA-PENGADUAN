@@ -1,0 +1,49 @@
+{
+  "entities": {
+    "Report": {
+      "title": "Report",
+      "description": "Pengaduan kasus kekerasan perempuan dan anak di Kabupaten Nagekeo",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ticketCode": { "type": "string" },
+        "secretPin": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "urgency": { "type": "string", "enum": ["darurat", "mendesak", "standar"] },
+        "category": { "type": "string" },
+        "status": { "type": "string", "enum": ["masuk", "verifikasi", "penjangkauan", "pendampingan", "selesai"] },
+        "confidentiality": { "type": "string", "enum": ["anonim", "rahasia", "terbuka"] },
+        "victimName": { "type": "string" },
+        "victimGender": { "type": "string", "enum": ["perempuan", "laki-laki"] },
+        "victimAge": { "type": "string" },
+        "victimAddress": { "type": "string" },
+        "kecamatan": { "type": "string" },
+        "desaKelurahan": { "type": "string" },
+        "incidentDate": { "type": "string" },
+        "incidentTime": { "type": "string" },
+        "incidentPlace": { "type": "string" },
+        "incidentDescription": { "type": "string" },
+        "perpetratorKnown": { "type": "boolean" },
+        "perpetratorName": { "type": "string" },
+        "perpetratorAge": { "type": "string" },
+        "perpetratorAddress": { "type": "string" },
+        "perpetratorRelationship": { "type": "string" },
+        "reporterName": { "type": "string" },
+        "reporterRelationship": { "type": "string" },
+        "reporterContact": { "type": "string" },
+        "servicesNeeded": { "type": "object" },
+        "attachments": { "type": "array" },
+        "officerNotes": { "type": "array" },
+        "messages": { "type": "array" }
+      },
+      "required": ["ticketCode", "createdAt", "victimName", "kecamatan", "desaKelurahan", "incidentDescription"]
+    }
+  },
+  "firestore": {
+    "/reports/{reportId}": {
+      "schema": "Report",
+      "description": "Koleksi data pengaduan kasus masyarakat untuk UPTD PPA Dinas PMDP3A Nagekeo"
+    }
+  }
+}
