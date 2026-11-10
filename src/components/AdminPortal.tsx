@@ -719,7 +719,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     </a>
                   )}
                   {syncStatusMsg && <p className="text-[11px] text-emerald-700 font-medium">{syncStatusMsg}</p>}
-                  {syncError && <p className="text-[11px] text-rose-600 font-medium">{syncError}</p>}
+                  {syncError && <p className="text-[11px] text-rose-600 font-medium whitespace-pre-wrap">{syncError}</p>}
                 </div>
               </div>
 
