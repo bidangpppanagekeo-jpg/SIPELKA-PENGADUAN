@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Lock, Shield, CheckCircle2, AlertTriangle, Search, Filter, 
   Download, Printer, FileText, Send, User, MapPin, Calendar, 
-  MessageSquare, ChevronRight, X, Clock, Eye, ExternalLink, RefreshCw,
+  MessageSquare, ChevronRight, ChevronDown, Menu, X, Clock, Eye, ExternalLink, RefreshCw,
   Table2, Check, AlertCircle, LogOut, Copy, LayoutDashboard, Users, CheckSquare, PhoneCall, Trash2
 } from 'lucide-react';
 import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
@@ -59,8 +59,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [pinCode, setPinCode] = useState<string>('');
   const [loginError, setLoginError] = useState<string>('');
 
-  // Sidebar navigation state: 'semua' | 'masuk' | 'verifikasi' | 'penjangkauan' | 'pendampingan' | 'selesai' | 'darurat' | 'sheets'
-  const [sidebarTab, setSidebarTab] = useState<string>('semua');
+  // Sidebar navigation state: 'masuk' (Data Masuk) | 'verifikasi' (Verifikasi Pengaduan) | 'semua' (Semua Pengaduan)
+  const [sidebarTab, setSidebarTab] = useState<string>('masuk');
+
+  // Menu Utama Dropdown State (Di klik baru muncul agar layar tidak terkesan penuh)
+  const [isMainMenuOpen, setIsMainMenuOpen] = useState<boolean>(false);
+  const mainMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mainMenuRef.current && !mainMenuRef.current.contains(event.target as Node)) {
+        setIsMainMenuOpen(false);
+      }
+    };
+    if (isMainMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMainMenuOpen]);
 
   // Filtering states
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -69,7 +87,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [filterUrgency, setFilterUrgency] = useState<string>('semua');
 
   // Selected case for detailed review
-  const [selectedCase, setSelectedCase] = useState<ReportItem | null>(reports[0] || null);
+  const [selectedCase, setSelectedCase] = useState<ReportItem | null>(() => {
+    return reports.find(r => r.status === 'masuk') || reports[0] || null;
+  });
   
   // Note formulation
   const [newNoteSummary, setNewNoteSummary] = useState<string>('');
@@ -90,9 +110,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [isSyncingSheet, setIsSyncingSheet] = useState<boolean>(false);
   const [syncStatusMsg, setSyncStatusMsg] = useState<string>('');
   const [syncError, setSyncError] = useState<string>('');
-  
-  // Mandatory Confirmation Modal before updating/modifying Google Sheets data
-  const [showSyncConfirmModal, setShowSyncConfirmModal] = useState<boolean>(false);
   
   // Case Deletion State & Modal
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState<boolean>(false);
@@ -291,9 +308,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  // Perform confirmed 2-way sync to Google Sheets
+  // Perform 2-way sync to Google Sheets
   const handlePerformSync = async () => {
-    setShowSyncConfirmModal(false);
     if (!googleToken) {
       await handleConnectGoogle();
       return;
@@ -566,9 +582,128 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Menu Utama (Di klik baru muncul: Kirim Data, Tarik Data, Kode GS agar layar rapi & tidak penuh) */}
+            <div className="relative" ref={mainMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsMainMenuOpen((prev) => !prev)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  isMainMenuOpen 
+                    ? 'bg-teal-700 text-white shadow-sm ring-1 ring-teal-400' 
+                    : 'bg-stone-800 hover:bg-stone-700 text-teal-300 hover:text-white border border-stone-700'
+                }`}
+                title="Buka Menu Utama Sinkronisasi Google Sheets"
+              >
+                <Table2 className="w-4 h-4 text-teal-300" />
+                <span>Menu Utama</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-stone-400 transition-transform duration-150 ${isMainMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Popover / Dropdown Menu Utama */}
+              {isMainMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-80 sm:w-88 bg-stone-900 text-stone-100 rounded-2xl shadow-2xl border border-stone-700 p-3.5 z-50 space-y-3">
+                  <div className="flex items-center justify-between border-b border-stone-800 pb-2.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-white">
+                      <Table2 className="w-4 h-4 text-teal-400" />
+                      <span>Menu Utama Integrasi Google Sheets</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsMainMenuOpen(false)}
+                      className="p-1 rounded-md text-stone-400 hover:text-white hover:bg-stone-800 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Status Ringkas Apps Script */}
+                  <div className="text-[11px] bg-stone-950 p-2.5 rounded-xl border border-stone-800 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-stone-300 font-medium">Status Webhook Google Sheets</span>
+                      <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        Siap Sinkron
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-stone-400 font-mono truncate">
+                      ID Proyek: {DEFAULT_APPS_SCRIPT_PROJECT_ID.slice(0, 18)}...
+                    </p>
+                  </div>
+
+                  {/* Tombol Aksi: Kirim Data, Tarik Data, Kode GS */}
+                  <div className="space-y-2 text-xs font-medium">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await handleSyncAppsScript();
+                      }}
+                      disabled={isSyncingAppsScript}
+                      className="w-full py-2.5 px-3 bg-teal-800 hover:bg-teal-700 active:bg-teal-900 text-white font-semibold rounded-xl flex items-center justify-between cursor-pointer transition-colors shadow-xs"
+                      title="Kirim seluruh data pengaduan saat ini ke Google Sheets"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Send className={`w-3.5 h-3.5 text-teal-200 ${isSyncingAppsScript ? 'animate-pulse' : ''}`} />
+                        <span>{isSyncingAppsScript ? 'Mengirim Data...' : 'Kirim Data ke Sheets'}</span>
+                      </div>
+                      <RefreshCw className={`w-3.5 h-3.5 text-teal-300 ${isSyncingAppsScript ? 'animate-spin' : ''}`} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await handlePullFromAppsScript();
+                      }}
+                      disabled={isSyncingAppsScript}
+                      className="w-full py-2.5 px-3 bg-stone-800 hover:bg-stone-700 active:bg-stone-800 text-teal-200 font-semibold rounded-xl border border-stone-700 flex items-center justify-between cursor-pointer transition-colors"
+                      title="Tarik data pengaduan terkini dari Google Sheets ke Dasbor"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Download className="w-3.5 h-3.5 text-teal-300" />
+                        <span>Tarik Data Sheets</span>
+                      </div>
+                      <span className="text-[10px] text-stone-400">Dari Sheets</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMainMenuOpen(false);
+                        setShowAppsScriptModal(true);
+                      }}
+                      className="w-full py-2.5 px-3 bg-stone-800 hover:bg-stone-700 text-stone-200 font-semibold rounded-xl border border-stone-700 flex items-center justify-between cursor-pointer transition-colors"
+                      title="Lihat Kode Google Apps Script & Atur URL Web App"
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Kode GS & Web App URL</span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-stone-400" />
+                    </button>
+                  </div>
+
+                  {appsScriptMsg && (
+                    <div className="p-2.5 bg-stone-950 rounded-xl border border-teal-900/60 text-[11px] text-teal-300 font-medium">
+                      {appsScriptMsg}
+                    </div>
+                  )}
+
+                  {activeSheet?.url && (
+                    <a
+                      href={activeSheet.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-center text-[11px] text-teal-300 hover:text-teal-200 underline pt-1 font-medium"
+                    >
+                      Buka Dokumen Spreadsheet Dinas ↗
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+
             <button
               onClick={exportToCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg transition-colors cursor-pointer border border-stone-700"
               title="Unduh Data Kasus ke Format Spreadsheet"
             >
               <Download className="w-3.5 h-3.5" />
@@ -577,7 +712,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
             <button
               onClick={onClose}
-              className="text-stone-400 hover:text-white p-1 rounded-lg hover:bg-stone-800 transition-colors cursor-pointer"
+              className="text-stone-400 hover:text-white p-1.5 rounded-lg hover:bg-stone-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -592,24 +727,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="space-y-4">
               <div>
                 <span className="text-[10px] uppercase tracking-wider text-stone-500 font-bold block mb-2 px-2">
-                  Menu Utama Rekapan
+                  Menu Rekapan
                 </span>
-                <nav className="space-y-1 text-xs font-medium">
-                  <button
-                    onClick={() => setSidebarTab('semua')}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
-                      sidebarTab === 'semua' ? 'bg-teal-800 text-white font-bold shadow-sm' : 'hover:bg-stone-800 text-stone-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <LayoutDashboard className="w-4 h-4 text-teal-300" />
-                      <span>Semua Pengaduan</span>
-                    </div>
-                    <span className="bg-stone-800 text-stone-300 px-2 py-0.5 rounded-full text-[10px] font-mono">
-                      {reports.length}
-                    </span>
-                  </button>
-
+                <nav className="space-y-1.5 text-xs font-medium">
+                  {/* Data Masuk */}
                   <button
                     onClick={() => setSidebarTab('masuk')}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
@@ -618,13 +739,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   >
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-teal-300" />
-                      <span>Data Masuk Baru</span>
+                      <span>Data Masuk</span>
                     </div>
                     <span className="bg-stone-800 text-stone-300 px-2 py-0.5 rounded-full text-[10px] font-mono">
                       {reports.filter(r => r.status === 'masuk').length}
                     </span>
                   </button>
 
+                  {/* Verifikasi Pengaduan */}
                   <button
                     onClick={() => setSidebarTab('verifikasi')}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
@@ -633,87 +755,46 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   >
                     <div className="flex items-center gap-2">
                       <CheckSquare className="w-4 h-4 text-teal-300" />
-                      <span>Verifikasi Kasus</span>
+                      <span>Verifikasi Pengaduan</span>
                     </div>
                     <span className="bg-stone-800 text-stone-300 px-2 py-0.5 rounded-full text-[10px] font-mono">
                       {reports.filter(r => r.status === 'verifikasi').length}
                     </span>
                   </button>
 
+                  {/* Opsi Tampilkan Semua Kasus (Ringkas) */}
                   <button
-                    onClick={() => setSidebarTab('penjangkauan')}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
-                      sidebarTab === 'penjangkauan' ? 'bg-teal-800 text-white font-bold shadow-sm' : 'hover:bg-stone-800 text-stone-300'
+                    onClick={() => setSidebarTab('semua')}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[11px] transition-all cursor-pointer mt-1 ${
+                      sidebarTab === 'semua' ? 'bg-stone-800 text-teal-300 font-bold' : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-teal-300" />
-                      <span>Penjangkauan Lapangan</span>
+                      <LayoutDashboard className="w-3.5 h-3.5" />
+                      <span>Semua Pengaduan</span>
                     </div>
-                    <span className="bg-stone-800 text-stone-300 px-2 py-0.5 rounded-full text-[10px] font-mono">
-                      {reports.filter(r => r.status === 'penjangkauan').length}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setSidebarTab('pendampingan')}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
-                      sidebarTab === 'pendampingan' ? 'bg-teal-800 text-white font-bold shadow-sm' : 'hover:bg-stone-800 text-stone-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-teal-300" />
-                      <span>Pendampingan Hukum</span>
-                    </div>
-                    <span className="bg-stone-800 text-stone-300 px-2 py-0.5 rounded-full text-[10px] font-mono">
-                      {reports.filter(r => r.status === 'pendampingan').length}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setSidebarTab('selesai')}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
-                      sidebarTab === 'selesai' ? 'bg-teal-800 text-white font-bold shadow-sm' : 'hover:bg-stone-800 text-stone-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span>Kasus Selesai / Pulih</span>
-                    </div>
-                    <span className="bg-stone-800 text-stone-300 px-2 py-0.5 rounded-full text-[10px] font-mono">
-                      {reports.filter(r => r.status === 'selesai').length}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setSidebarTab('darurat')}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
-                      sidebarTab === 'darurat' ? 'bg-rose-900 text-white font-bold shadow-sm' : 'hover:bg-stone-800 text-rose-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-rose-400" />
-                      <span>Kategori Darurat</span>
-                    </div>
-                    <span className="bg-rose-950 text-rose-200 px-2 py-0.5 rounded-full text-[10px] font-mono">
-                      {reports.filter(r => r.urgency === 'darurat').length}
+                    <span className="text-[10px] font-mono">
+                      {reports.length}
                     </span>
                   </button>
                 </nav>
               </div>
 
-              {/* Quick Google Sheets integration shortcut in sidebar */}
-              <div className="pt-2 border-t border-stone-800 space-y-2">
+              {/* Menu Utama Tombol di Sidebar */}
+              <div className="pt-3 border-t border-stone-800 space-y-1.5">
                 <span className="text-[10px] uppercase tracking-wider text-stone-500 font-bold block px-2">
-                  Integrasi Cloud 2-Arah
+                  Menu Utama
                 </span>
                 <button
-                  onClick={() => setShowSyncConfirmModal(true)}
-                  disabled={isSyncingSheet}
-                  className="w-full py-2.5 px-3 bg-emerald-800 hover:bg-emerald-700 active:bg-emerald-900 text-white text-xs font-semibold rounded-xl flex items-center gap-2 cursor-pointer transition-colors shadow-xs"
+                  type="button"
+                  onClick={() => setIsMainMenuOpen(true)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-stone-800/90 hover:bg-stone-800 text-teal-300 hover:text-white text-xs font-semibold cursor-pointer border border-teal-900/50 transition-colors shadow-2xs"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSheet ? 'animate-spin' : ''}`} />
-                  <span>Sinkronkan 2-Arah Sheets</span>
+                  <div className="flex items-center gap-2">
+                    <Table2 className="w-4 h-4 text-teal-400" />
+                    <span>Integrasi Google Sheets</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-stone-400" />
                 </button>
               </div>
             </div>
@@ -723,147 +804,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
           </div>
 
-          {/* MAIN CONTENT AREA (9 cols: Google Sheets Header + Filters + Master-Detail) */}
+          {/* MAIN CONTENT AREA (9 cols: Filters + Master-Detail) */}
           <div className="lg:col-span-9 flex flex-col overflow-hidden bg-white">
             
-            {/* Google Sheets / Apps Script Integration Strip */}
-            <div className="bg-emerald-50/70 border-b border-emerald-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Table2 className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-emerald-950">
-                      Google Sheets 2-Way Sync
-                    </span>
-                    {googleUser ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                        {googleUser.email}
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-stone-100 text-stone-600">
-                        Belum Terhubung
-                      </span>
-                    )}
-                  </div>
-                  {activeSheet && (
-                    <a
-                      href={activeSheet.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-emerald-800 hover:underline font-semibold text-[11px] flex items-center gap-1 mt-0.5"
-                    >
-                      <span>{activeSheet.title}</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
-                  {syncStatusMsg && <p className="text-[11px] text-emerald-700 font-medium">{syncStatusMsg}</p>}
-                  {syncError && <p className="text-[11px] text-rose-600 font-medium whitespace-pre-wrap">{syncError}</p>}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {!googleUser ? (
-                  <button
-                    onClick={handleConnectGoogle}
-                    disabled={isSigningInGoogle}
-                    className="px-3 py-1.5 bg-white hover:bg-stone-50 text-stone-800 font-semibold rounded-lg border border-stone-300 shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 48 48">
-                      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-                      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-                      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-                      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-                    </svg>
-                    <span>Hubungkan Google Sheets</span>
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => setShowSyncConfirmModal(true)}
-                      disabled={isSyncingSheet}
-                      className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSheet ? 'animate-spin' : ''}`} />
-                      <span>{isSyncingSheet ? 'Sinkronisasi...' : 'Sinkronkan 2-Arah'}</span>
-                    </button>
-                    <button
-                      onClick={handleDisconnectGoogle}
-                      className="p-1.5 text-stone-500 hover:text-stone-800 rounded-lg hover:bg-stone-200/60 cursor-pointer"
-                      title="Putuskan"
-                    >
-                      <LogOut className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Google Apps Script Web App Integration Strip (Webhook 2-Way) */}
-            <div className="bg-stone-900 text-stone-200 border-b border-stone-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs">
-              <div className="flex items-center gap-2.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-white">Google Apps Script Web App (Webhook Terhubung)</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-stone-800 text-teal-300 border border-teal-800/60">
-                      ID Proyek: {DEFAULT_APPS_SCRIPT_PROJECT_ID.slice(0, 15)}...
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-stone-400">
-                    Sinkronisasi 2-arah langsung ke Google Sheets (Bekerja di domain kustom & Cloudflare tanpa kendala OAuth)
-                  </p>
-                  {appsScriptMsg && (
-                    <p className="text-[11px] text-teal-300 font-medium mt-0.5">{appsScriptMsg}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleSyncAppsScript}
-                  disabled={isSyncingAppsScript}
-                  className="px-3 py-1.5 bg-teal-700 hover:bg-teal-600 active:bg-teal-800 text-white font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
-                  title="Kirim seluruh data pengaduan saat ini ke Google Sheets"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingAppsScript ? 'animate-spin' : ''}`} />
-                  <span>{isSyncingAppsScript ? 'Mengirim...' : 'Kirim Data ke Sheets'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handlePullFromAppsScript}
-                  disabled={isSyncingAppsScript}
-                  className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-teal-200 font-semibold rounded-lg border border-stone-700 flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
-                  title="Tarik data pengaduan terkini dari Google Sheets ke Dasbor"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Tarik Data Sheets</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowAppsScriptModal(true)}
-                  className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 font-semibold rounded-lg border border-stone-700 flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
-                  title="Buka Pengaturan Web App URL dan Kode Google Apps Script"
-                >
-                  <span>Kode GS & Web App URL</span>
-                </button>
-
-                <a
-                  href={`https://script.google.com/d/${DEFAULT_APPS_SCRIPT_PROJECT_ID}/edit`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-1.5 text-stone-400 hover:text-white rounded-lg hover:bg-stone-800 transition-colors"
-                  title="Buka Proyek Apps Script"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
-            </div>
-
             {/* Filter Toolbar */}
             <div className="p-3 bg-stone-50 border-b border-stone-200 flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs">
               <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[260px]">
@@ -1181,36 +1124,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 <Printer className="w-3.5 h-3.5" />
                 <span>Cetak Lembar Resmi</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirmation Modal */}
-      {showSyncConfirmModal && (
-        <div className="fixed inset-0 z-70 bg-stone-950/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-stone-200 space-y-4">
-            <div className="flex items-center gap-2 text-teal-950 font-bold text-sm">
-              <Table2 className="w-5 h-5 text-emerald-700" />
-              <h3>Konfirmasi Sinkronisasi 2-Arah Google Sheets</h3>
-            </div>
-            <p className="text-xs text-stone-600">
-              Operasi ini akan mengirimkan data lokal ke spreadsheet dan menarik data terbaru dari Google Sheets.
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setShowSyncConfirmModal(false)}
-                className="px-4 py-2 bg-stone-100 text-stone-700 text-xs font-semibold rounded-lg cursor-pointer"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handlePerformSync}
-                className="px-4 py-2 bg-emerald-800 text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1.5"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Mulai Sinkronisasi</span>
               </button>
             </div>
           </div>
