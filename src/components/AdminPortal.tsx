@@ -18,6 +18,7 @@ import {
   syncAllComplaintsToSpreadsheet, 
   fetchComplaintsFromSpreadsheet,
   getSavedSpreadsheetInfo, 
+  clearSavedSpreadsheetInfo,
   ActiveSpreadsheetInfo 
 } from '../services/googleSheets';
 import { 
@@ -224,10 +225,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // Google Sign Out handler
   const handleDisconnectGoogle = async () => {
     await signOutFromGoogle();
+    clearSavedSpreadsheetInfo();
+    setActiveSheet(null);
     setGoogleUser(null);
     setGoogleToken(null);
     onOfficerLoginChange?.(null);
-    setSyncStatusMsg('Akun Google berhasil diputuskan.');
+    setSyncStatusMsg('Akun Google berhasil diputuskan dan konfigurasi Sheet dibersihkan.');
   };
 
   // Create brand new Google Sheet

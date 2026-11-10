@@ -117,6 +117,17 @@ export const saveSpreadsheetInfo = (info: ActiveSpreadsheetInfo): void => {
 };
 
 /**
+ * Clear saved spreadsheet info from localStorage
+ */
+export const clearSavedSpreadsheetInfo = (): void => {
+  try {
+    localStorage.removeItem(SHEETS_STORAGE_KEY);
+  } catch (e) {
+    console.error('Failed to clear spreadsheet info', e);
+  }
+};
+
+/**
  * Create a new Google Spreadsheet for SI-PELKA Nagekeo complaints
  */
 export const createComplaintSpreadsheet = async (
