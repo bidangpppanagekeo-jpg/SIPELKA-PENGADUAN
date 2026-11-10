@@ -58,8 +58,6 @@ export default function App() {
     };
   }, []);
 
-  // Main navigation tab: 'lapor' (Form) | 'lacak' (Check Status)
-  const [activeTab, setActiveTab] = useState<'lapor' | 'lacak'>('lapor');
   const [isDisguised, setIsDisguised] = useState<boolean>(false);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
@@ -153,14 +151,9 @@ export default function App() {
   const [needCounseling, setNeedCounseling] = useState<boolean>(true);
   const [evidenceName, setEvidenceName] = useState<string>('');
 
-  // Result & Tracker State
+  // Result & Ticket State
   const [submittedTicket, setSubmittedTicket] = useState<ReportItem | null>(null);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
-  const [searchTicket, setSearchTicket] = useState<string>('');
-  const [searchPin, setSearchPin] = useState<string>('');
-  const [foundReport, setFoundReport] = useState<ReportItem | null>(null);
-  const [trackerError, setTrackerError] = useState<string>('');
-  const [chatInput, setChatInput] = useState<string>('');
 
   // Quick exit handler
   const handleQuickExit = () => {
@@ -317,75 +310,6 @@ export default function App() {
     })();
   };
 
-  // Search case tracker (Cek status laporan via tiket)
-  const handleSearchCase = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setTrackerError('');
-    const tCode = searchTicket.trim().toUpperCase();
-
-    // Cek memori lokal terlebih dahulu
-    const found = reports.find(
-      (r) => r.ticketCode.toUpperCase() === tCode
-    );
-
-    if (found) {
-      setFoundReport(found);
-      return;
-    }
-
-    // Jika belum ada di memori lokal, tarik langsung dari Cloud Firestore
-    try {
-      const fromCloud = await getReportByTicketCode(tCode);
-      if (fromCloud) {
-        setFoundReport(fromCloud);
-      } else {
-        setTrackerError('Nomor Tiket tidak ditemukan. Silakan periksa kembali nomor tiket Anda.');
-        setFoundReport(null);
-      }
-    } catch {
-      setTrackerError('Nomor Tiket tidak ditemukan. Silakan periksa kembali nomor tiket Anda.');
-      setFoundReport(null);
-    }
-  };
-
-  // Send message in case tracker
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim() || !foundReport) return;
-
-    const newMsg = {
-      id: `msg_${Date.now()}`,
-      sender: 'pelapor' as const,
-      senderName: foundReport.confidentiality === 'anonim' ? 'Pelapor (Anonim)' : 'Pelapor',
-      text: chatInput.trim(),
-      timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WITA'
-    };
-
-    const updatedMessages = [...foundReport.messages, newMsg];
-
-    const updatedReports = reports.map((r) =>
-      r.ticketCode === foundReport.ticketCode
-        ? { ...r, messages: updatedMessages, updatedAt: new Date().toISOString() }
-        : r
-    );
-
-    setReports(updatedReports);
-    setFoundReport({
-      ...foundReport,
-      messages: updatedMessages
-    });
-    setChatInput('');
-
-    // Persist ke Cloud Firestore secara realtime
-    try {
-      await updateReportInFirestore(foundReport.ticketCode, {
-        messages: updatedMessages
-      });
-    } catch (err) {
-      console.warn('Gagal update pesan ke Firestore:', err);
-    }
-  };
-
   // Reset form
   const handleResetForm = () => {
     setFormStep(1);
@@ -471,42 +395,12 @@ export default function App() {
             </button>
           </div>
         </div>
-
-        {/* Segmented Control (Buat Laporan vs Cek Status) */}
-        <div className="px-4 pb-3">
-          <div className="grid grid-cols-2 p-1 bg-teal-950/60 rounded-xl gap-1 border border-teal-800/60">
-            <button
-              onClick={() => setActiveTab('lapor')}
-              className={`py-2 px-3 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[42px] touch-manipulation ${
-                activeTab === 'lapor'
-                  ? 'bg-white text-teal-950 shadow-sm'
-                  : 'text-teal-200 hover:text-white'
-              }`}
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Formulir Pengaduan</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('lacak')}
-              className={`py-2 px-3 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[42px] touch-manipulation ${
-                activeTab === 'lacak'
-                  ? 'bg-white text-teal-950 shadow-sm'
-                  : 'text-teal-200 hover:text-white'
-              }`}
-            >
-              <Search className="w-4 h-4" />
-              <span>Cek Status Aduan</span>
-            </button>
-          </div>
-        </div>
       </header>
 
       {/* Main Container - Optimized for Mobile Use */}
       <main className="flex-1 max-w-lg w-full mx-auto p-4 space-y-4">
-        {/* ================= VIEW 1: FORMULIR PENGADUAN ================= */}
-        {activeTab === 'lapor' && (
-          <div className="space-y-3">
+        {/* ================= FORMULIR PENGADUAN ================= */}
+        <div className="space-y-3">
             {/* Guidebook Quick Callout Banner */}
             {formStep < 4 && (
               <div className="bg-teal-50 border border-teal-200 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs text-teal-950">
@@ -1173,136 +1067,6 @@ export default function App() {
             )}
           </div>
         </div>
-      )}
-
-        {/* ================= VIEW 2: CEK STATUS ADUAN ================= */}
-        {activeTab === 'lacak' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-4 sm:p-5 space-y-4">
-            <div>
-              <h2 className="text-sm font-bold text-stone-900">Lacak Status Pengaduan Anda</h2>
-              <p className="text-xs text-stone-500">
-                Masukkan Kode Tiket Pengaduan Anda untuk memeriksa perkembangan penanganan kasus.
-              </p>
-            </div>
-
-            <form onSubmit={handleSearchCase} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  Nomor Tiket Pengaduan:
-                </label>
-                <input
-                  type="text"
-                  value={searchTicket}
-                  onChange={(e) => setSearchTicket(e.target.value)}
-                  placeholder="Contoh: PPA-NGK-2026-1042"
-                  className="w-full text-base sm:text-xs font-mono font-medium border border-stone-300 rounded-xl p-3 bg-stone-50 uppercase focus:bg-white focus:border-teal-700 focus:outline-none min-h-[44px]"
-                  required
-                />
-              </div>
-
-              {trackerError && (
-                <p className="text-xs text-rose-600 font-medium">{trackerError}</p>
-              )}
-
-              <button
-                type="submit"
-                className="w-full py-3 bg-teal-800 hover:bg-teal-900 active:bg-teal-950 text-white font-bold text-xs rounded-xl shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer min-h-[48px] touch-manipulation"
-              >
-                <Search className="w-4 h-4" />
-                <span>Cari Status Pengaduan</span>
-              </button>
-            </form>
-
-            {/* Quick Demo Hint */}
-            <div className="text-[11px] text-stone-500 bg-stone-50 p-2.5 rounded-lg border border-stone-200">
-              Contoh Kasus Aktif: <button type="button" onClick={() => { setSearchTicket('PPA-NGK-2026-1042'); }} className="text-teal-800 font-bold underline">PPA-NGK-2026-1042</button>
-            </div>
-
-            {/* Result Display */}
-            {foundReport && (
-              <div className="pt-3 border-t border-stone-200 space-y-4">
-                <div className="bg-teal-50 border border-teal-200 rounded-xl p-3.5 space-y-2">
-                  <div className="flex items-center justify-between border-b border-teal-200/60 pb-1.5">
-                    <span className="font-mono font-bold text-xs text-teal-950">{foundReport.ticketCode}</span>
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-teal-800 text-white">
-                      Status: {foundReport.status}
-                    </span>
-                  </div>
-
-                  <div className="text-xs text-stone-800 space-y-1">
-                    <div><strong>Data Korban:</strong> {foundReport.victimName} ({foundReport.victimGender === 'perempuan' ? 'P' : 'L'}, {foundReport.victimAge} th)</div>
-                    <div><strong>Alamat Korban:</strong> {foundReport.victimAddress}</div>
-                    <div><strong>Waktu Kejadian:</strong> {foundReport.incidentDate} ({foundReport.incidentTime})</div>
-                    <div><strong>Tempat Kejadian:</strong> {foundReport.incidentPlace}</div>
-                    <div><strong>Terduga Pelaku:</strong> {foundReport.perpetratorName} ({foundReport.perpetratorRelationship})</div>
-                    <div><strong>Pelapor Terdaftar:</strong> {foundReport.reporterName} ({foundReport.reporterRelationship}) · HP: {foundReport.reporterContact}</div>
-                  </div>
-                </div>
-
-                {/* Catatan Petugas */}
-                <div className="space-y-2 text-xs">
-                  <div className="font-bold text-stone-800 flex items-center gap-1.5">
-                    <FileText className="w-4 h-4 text-teal-800" />
-                    <span>Catatan Petugas UPTD PPA Dinas PMDP3A:</span>
-                  </div>
-                  {foundReport.officerNotes.map((note) => (
-                    <div key={note.id} className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-1">
-                      <div className="flex justify-between text-[10px] text-stone-500">
-                        <span className="font-bold text-teal-900">{note.officerName}</span>
-                        <span>{note.date}</span>
-                      </div>
-                      <p className="text-stone-800">{note.summary}</p>
-                      <p className="text-stone-600 text-[11px] bg-white p-2 rounded border border-stone-100">
-                        <strong>Rencana Tindakan:</strong> {note.actionPlan}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Pesan Rahasia 2 Arah */}
-                <div className="space-y-2 text-xs">
-                  <div className="font-bold text-stone-800 flex items-center gap-1.5">
-                    <MessageCircle className="w-4 h-4 text-teal-800" />
-                    <span>Kirim Pesan Rahasia ke Petugas:</span>
-                  </div>
-
-                  <div className="space-y-1.5 max-h-36 overflow-y-auto bg-stone-50 p-2.5 rounded-xl border border-stone-200">
-                    {foundReport.messages.length > 0 ? (
-                      foundReport.messages.map((m) => (
-                        <div key={m.id} className={`text-xs p-2 rounded-lg max-w-[85%] ${
-                          m.sender === 'pelapor' ? 'bg-teal-800 text-white ml-auto' : 'bg-white border border-stone-200 mr-auto'
-                        }`}>
-                          <div className="text-[9px] opacity-75">{m.senderName} ({m.timestamp})</div>
-                          <div>{m.text}</div>
-                        </div>
-                      ))
-                    ) : (
-                      <span className="text-[11px] text-stone-400 italic block py-1 text-center">
-                        Belum ada pesan obrolan.
-                      </span>
-                    )}
-                  </div>
-
-                  <form onSubmit={handleSendMessage} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="Tulis pesan ke petugas UPTD PPA..."
-                      className="flex-1 text-base sm:text-xs border border-stone-300 rounded-xl px-3 py-2 bg-white focus:outline-none min-h-[44px]"
-                    />
-                    <button
-                      type="submit"
-                      className="px-4 bg-teal-800 text-white rounded-xl text-xs font-semibold cursor-pointer min-h-[44px] touch-manipulation"
-                    >
-                      <Send className="w-4 h-4" />
-                    </button>
-                  </form>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </main>
 
       {/* Bottom Footer with Helpline & Official Access */}
@@ -1489,7 +1253,6 @@ export default function App() {
         isOpen={isGuidebookOpen}
         onClose={() => setIsGuidebookOpen(false)}
         onOpenForm={() => {
-          setActiveTab('lapor');
           setFormStep(1);
         }}
       />
