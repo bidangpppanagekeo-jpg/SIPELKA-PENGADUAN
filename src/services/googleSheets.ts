@@ -223,6 +223,22 @@ export const syncAllComplaintsToSpreadsheet = async (
   spreadsheetId: string,
   reports: ReportItem[]
 ): Promise<{ count: number; url: string }> => {
+  // Clear the range first to ensure deleted rows are completely wiped out from Google Sheets
+  try {
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/'Data Pengaduan Masuk'!A1:Z500:clear`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+  } catch (err) {
+    console.warn('Google Sheets range clear notice:', err);
+  }
+
   const allRows = [
     REPORT_SHEET_HEADERS,
     ...reports.map((r) => reportItemToRow(r))
@@ -284,14 +300,22 @@ export const fetchComplaintsFromSpreadsheet = async (
     const rows: string[][] = data.values || [];
     if (rows.length <= 1) return [];
 
-    const header = rows[0];
     const dataRows = rows.slice(1);
 
     const fetchedReports: ReportItem[] = dataRows.map((row, index) => {
       const ticketCode = row[0] || `PPA-NGK-2026-${1000 + index}`;
       const dateStr = row[1] || new Date().toISOString();
       const urgencyStr = (row[2] || 'mendesak').toLowerCase() as UrgencyLevel;
-      const categoryStr = row[3] || 'Kekerasan Fisik / KDRT';
+      const catRaw = row[3] || '';
+      
+      let categoryKey: any = 'kdrt_fisik';
+      for (const [k, v] of Object.entries(CATEGORY_LABELS)) {
+        if (catRaw.toLowerCase().includes(v.label.toLowerCase()) || v.label.toLowerCase().includes(catRaw.toLowerCase())) {
+          categoryKey = k;
+          break;
+        }
+      }
+
       const statusStr = (row[4] || 'masuk').toLowerCase() as CaseStatus;
       const victimName = row[5] || 'Korban';
       const victimGender = (row[6]?.toLowerCase().includes('perempuan') ? 'perempuan' : 'laki-laki') as 'perempuan' | 'laki-laki';
@@ -321,7 +345,7 @@ export const fetchComplaintsFromSpreadsheet = async (
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         urgency: ['darurat', 'mendesak', 'standar'].includes(urgencyStr) ? urgencyStr : 'mendesak',
-        category: 'kdrt_fisik',
+        category: categoryKey,
         status: ['masuk', 'verifikasi', 'penjangkauan', 'pendampingan', 'selesai'].includes(statusStr) ? statusStr : 'masuk',
         confidentiality,
         victimName,

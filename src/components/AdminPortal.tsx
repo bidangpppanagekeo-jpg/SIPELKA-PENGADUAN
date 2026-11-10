@@ -3,7 +3,7 @@ import {
   Lock, Shield, CheckCircle2, AlertTriangle, Search, Filter, 
   Download, Printer, FileText, Send, User, MapPin, Calendar, 
   MessageSquare, ChevronRight, X, Clock, Eye, ExternalLink, RefreshCw,
-  Table2, Check, AlertCircle, LogOut, Copy, LayoutDashboard, Users, CheckSquare, PhoneCall
+  Table2, Check, AlertCircle, LogOut, Copy, LayoutDashboard, Users, CheckSquare, PhoneCall, Trash2
 } from 'lucide-react';
 import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
 import { CATEGORY_LABELS } from '../data/mockData';
@@ -33,6 +33,7 @@ interface AdminPortalProps {
   onUpdateStatus: (ticketCode: string, newStatus: CaseStatus) => void;
   onAddOfficerNote: (ticketCode: string, summary: string, actionPlan: string, assignedUnit: string) => void;
   onOfficerSendMessage: (ticketCode: string, messageText: string) => void;
+  onDeleteReport?: (ticketCode: string) => void;
   onClose: () => void;
   onOfficerLoginChange?: (email: string | null) => void;
   onReportsSynced?: (newReports: ReportItem[]) => void;
@@ -45,6 +46,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onUpdateStatus,
   onAddOfficerNote,
   onOfficerSendMessage,
+  onDeleteReport,
   onClose,
   onOfficerLoginChange,
   onReportsSynced
@@ -88,6 +90,32 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   
   // Mandatory Confirmation Modal before updating/modifying Google Sheets data
   const [showSyncConfirmModal, setShowSyncConfirmModal] = useState<boolean>(false);
+  
+  // Case Deletion State & Modal
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState<boolean>(false);
+
+  const handleConfirmDeleteCase = async () => {
+    if (!selectedCase) return;
+    const deletedTicketCode = selectedCase.ticketCode;
+    setShowDeleteConfirmModal(false);
+
+    onDeleteReport?.(deletedTicketCode);
+
+    const remaining = reports.filter((r) => r.ticketCode !== deletedTicketCode);
+    setSelectedCase(remaining[0] || null);
+
+    if (googleToken && activeSheet?.id) {
+      try {
+        setIsSyncingSheet(true);
+        await syncAllComplaintsToSpreadsheet(googleToken, activeSheet.id, remaining);
+        setSyncStatusMsg(`Kasus ${deletedTicketCode} berhasil dihapus dan disinkronkan ke Google Sheets.`);
+      } catch (err: any) {
+        setSyncError(err.message || 'Gagal menghapus data di Google Sheets.');
+      } finally {
+        setIsSyncingSheet(false);
+      }
+    }
+  };
 
   // Google Apps Script Integration State
   const [appsScriptUrl, setAppsScriptUrlState] = useState<string>(() => getSavedAppsScriptUrl());
@@ -875,6 +903,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           <Printer className="w-3.5 h-3.5" />
                           <span>Cetak BAP</span>
                         </button>
+
+                        <button
+                          onClick={() => setShowDeleteConfirmModal(true)}
+                          className="px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs"
+                          title="Hapus Kasus dari Dashboard & Google Sheets"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Hapus Kasus</span>
+                        </button>
                       </div>
                     </div>
 
@@ -1052,6 +1089,40 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Mulai Sinkronisasi</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirmModal && selectedCase && (
+        <div className="fixed inset-0 z-70 bg-stone-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-rose-200 space-y-4">
+            <div className="flex items-center gap-2 text-rose-950 font-bold text-sm">
+              <Trash2 className="w-5 h-5 text-rose-600" />
+              <h3>Konfirmasi Hapus Data Pengaduan</h3>
+            </div>
+            <p className="text-xs text-stone-600 leading-relaxed">
+              Apakah Anda yakin ingin menghapus pengaduan berkas <strong className="font-mono text-stone-900">{selectedCase.ticketCode}</strong> (Korban: {selectedCase.victimName})?
+            </p>
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-800 space-y-1">
+              <span className="font-bold block">Sinkronisasi 2-Arah Google Sheets:</span>
+              <span>Penghapusan data ini akan langsung menghapus baris kasus dari dashboard dan menyinkronkannya ke Google Sheets jika terhubung.</span>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowDeleteConfirmModal(false)}
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-lg cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleConfirmDeleteCase}
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 active:bg-rose-900 text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1.5 shadow-sm"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Hapus Kasus Permanen</span>
               </button>
             </div>
           </div>

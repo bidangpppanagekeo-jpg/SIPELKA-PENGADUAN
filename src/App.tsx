@@ -1415,6 +1415,9 @@ export default function App() {
               )
             );
           }}
+          onDeleteReport={(ticketCode) => {
+            setReports((prev) => prev.filter((r) => r.ticketCode !== ticketCode));
+          }}
           onClose={() => setIsAdminOpen(false)}
           onReportsSynced={(newReports) => {
             setReports(newReports);
