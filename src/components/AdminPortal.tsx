@@ -6,7 +6,7 @@ import {
   Table2, Check, AlertCircle, LogOut, Copy, LayoutDashboard, Users, CheckSquare, PhoneCall, Trash2
 } from 'lucide-react';
 import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
-import { CATEGORY_LABELS } from '../data/mockData';
+import { CATEGORY_LABELS, INITIAL_REPORTS } from '../data/mockData';
 import { 
   initAuth, 
   signInWithGoogle, 
@@ -25,6 +25,8 @@ import {
   getSavedAppsScriptUrl, 
   saveAppsScriptUrl, 
   syncAllToAppsScript, 
+  fetchComplaintsFromAppsScript,
+  deleteFromAppsScript,
   APPS_SCRIPT_TEMPLATE_CODE,
   DEFAULT_APPS_SCRIPT_PROJECT_ID 
 } from '../services/appsScript';
@@ -105,6 +107,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     const remaining = reports.filter((r) => r.ticketCode !== deletedTicketCode);
     setSelectedCase(remaining[0] || null);
 
+    // 1. If connected via Google Sheets OAuth, sync deletion directly
     if (googleToken && activeSheet?.id) {
       try {
         setIsSyncingSheet(true);
@@ -114,6 +117,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         setSyncError(err.message || 'Gagal menghapus data di Google Sheets.');
       } finally {
         setIsSyncingSheet(false);
+      }
+    }
+
+    // 2. Also send delete request to Google Apps Script Web App
+    if (appsScriptUrl) {
+      try {
+        await deleteFromAppsScript(deletedTicketCode, appsScriptUrl);
+        setAppsScriptMsg(`Kasus ${deletedTicketCode} terhapus dari Spreadsheet via Apps Script.`);
+      } catch (err) {
+        console.warn('Apps Script delete notice:', err);
       }
     }
   };
@@ -136,6 +149,30 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     } finally {
       setIsSyncingAppsScript(false);
     }
+  };
+
+  const handlePullFromAppsScript = async () => {
+    setIsSyncingAppsScript(true);
+    setAppsScriptMsg('');
+    try {
+      const remote = await fetchComplaintsFromAppsScript(appsScriptUrl);
+      if (remote && remote.length > 0) {
+        onReportsSynced?.(remote);
+        setSelectedCase(remote[0] || null);
+        setAppsScriptMsg(`Sukses! ${remote.length} data pengaduan berhasil ditarik dari Google Sheets.`);
+      } else {
+        setAppsScriptMsg('Spreadsheet masih kosong atau belum ada pengaduan tercatat.');
+      }
+    } catch (e: any) {
+      setAppsScriptMsg(e.message || 'Gagal menarik data dari Google Apps Script.');
+    } finally {
+      setIsSyncingAppsScript(false);
+    }
+  };
+
+  const handleRestoreSampleReports = () => {
+    onReportsSynced?.(INITIAL_REPORTS);
+    setSelectedCase(INITIAL_REPORTS[0] || null);
   };
 
   const handleSaveAppsScriptUrl = (url: string) => {
@@ -763,6 +800,70 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
             </div>
 
+            {/* Google Apps Script Web App Integration Strip (Webhook 2-Way) */}
+            <div className="bg-stone-900 text-stone-200 border-b border-stone-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white">Google Apps Script Web App (Webhook Terhubung)</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-stone-800 text-teal-300 border border-teal-800/60">
+                      ID Proyek: {DEFAULT_APPS_SCRIPT_PROJECT_ID.slice(0, 15)}...
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-stone-400">
+                    Sinkronisasi 2-arah langsung ke Google Sheets (Bekerja di domain kustom & Cloudflare tanpa kendala OAuth)
+                  </p>
+                  {appsScriptMsg && (
+                    <p className="text-[11px] text-teal-300 font-medium mt-0.5">{appsScriptMsg}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleSyncAppsScript}
+                  disabled={isSyncingAppsScript}
+                  className="px-3 py-1.5 bg-teal-700 hover:bg-teal-600 active:bg-teal-800 text-white font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+                  title="Kirim seluruh data pengaduan saat ini ke Google Sheets"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingAppsScript ? 'animate-spin' : ''}`} />
+                  <span>{isSyncingAppsScript ? 'Mengirim...' : 'Kirim Data ke Sheets'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePullFromAppsScript}
+                  disabled={isSyncingAppsScript}
+                  className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-teal-200 font-semibold rounded-lg border border-stone-700 flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+                  title="Tarik data pengaduan terkini dari Google Sheets ke Dasbor"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Tarik Data Sheets</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAppsScriptModal(true)}
+                  className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 font-semibold rounded-lg border border-stone-700 flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+                  title="Buka Pengaturan Web App URL dan Kode Google Apps Script"
+                >
+                  <span>Kode GS & Web App URL</span>
+                </button>
+
+                <a
+                  href={`https://script.google.com/d/${DEFAULT_APPS_SCRIPT_PROJECT_ID}/edit`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 text-stone-400 hover:text-white rounded-lg hover:bg-stone-800 transition-colors"
+                  title="Buka Proyek Apps Script"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+
             {/* Filter Toolbar */}
             <div className="p-3 bg-stone-50 border-b border-stone-200 flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs">
               <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[260px]">
@@ -860,8 +961,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     );
                   })
                 ) : (
-                  <div className="p-8 text-center text-xs text-stone-500">
-                    Tidak ada data pengaduan yang cocok pada kategori ini.
+                  <div className="p-8 text-center text-xs text-stone-500 space-y-3">
+                    <p>Tidak ada data pengaduan yang cocok pada kategori ini.</p>
+                    {reports.length === 0 && (
+                      <div className="flex flex-col gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={handleRestoreSampleReports}
+                          className="px-3 py-2 bg-teal-800 text-white rounded-lg font-semibold hover:bg-teal-900 cursor-pointer shadow-xs transition-colors"
+                        >
+                          Muat Ulang Data Awal Kasus
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handlePullFromAppsScript}
+                          className="px-3 py-2 bg-stone-100 text-stone-700 rounded-lg font-semibold hover:bg-stone-200 cursor-pointer border border-stone-300 transition-colors"
+                        >
+                          Tarik Data dari Google Sheets
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1092,6 +1211,141 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Mulai Sinkronisasi</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Google Apps Script Modal */}
+      {showAppsScriptModal && (
+        <div className="fixed inset-0 z-70 bg-stone-950/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-stone-200 space-y-4 my-auto max-h-[90vh] overflow-y-auto text-xs">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-teal-800 text-white flex items-center justify-center shrink-0">
+                  <Table2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-stone-900">
+                    Integrasi Google Apps Script Web App (2-Arah)
+                  </h3>
+                  <p className="text-[11px] text-stone-500">
+                    Bekerja tanpa kendala OAuth atau Origin Mismatch di Cloudflare & Domain Kustom
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAppsScriptModal(false)}
+                className="text-stone-400 hover:text-stone-700 p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* URL Web App Settings */}
+            <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200 space-y-2">
+              <label className="block font-bold text-stone-800">
+                Web App Exec URL (Webhook Google):
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={appsScriptUrl}
+                  onChange={(e) => handleSaveAppsScriptUrl(e.target.value)}
+                  placeholder="https://script.google.com/macros/s/.../exec"
+                  className="flex-1 border border-stone-300 rounded-lg p-2.5 bg-white font-mono text-[11px] focus:outline-none focus:border-teal-700"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSaveAppsScriptUrl(appsScriptUrl);
+                    setAppsScriptMsg('URL Web App berhasil disimpan!');
+                  }}
+                  className="px-3.5 py-2 bg-teal-800 text-white font-semibold rounded-lg hover:bg-teal-900 cursor-pointer shadow-xs shrink-0"
+                >
+                  Simpan URL
+                </button>
+              </div>
+              <p className="text-[10px] text-stone-500">
+                URL ini dihasilkan dari tombol <strong>Deploy &gt; New deployment &gt; Web app</strong> di Google Apps Script Anda.
+              </p>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-teal-50 border border-teal-200 rounded-xl">
+              <div className="text-teal-950 font-medium">
+                Uji Sinkronisasi Sekarang:
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSyncAppsScript}
+                  disabled={isSyncingAppsScript}
+                  className="px-3 py-1.5 bg-teal-800 hover:bg-teal-900 text-white font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingAppsScript ? 'animate-spin' : ''}`} />
+                  <span>{isSyncingAppsScript ? 'Mengirim...' : 'Kirim Data ke Sheets'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePullFromAppsScript}
+                  disabled={isSyncingAppsScript}
+                  className="px-3 py-1.5 bg-white hover:bg-stone-50 text-teal-900 font-semibold rounded-lg border border-teal-300 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Tarik Data dari Sheets</span>
+                </button>
+              </div>
+            </div>
+
+            {appsScriptMsg && (
+              <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-medium">
+                {appsScriptMsg}
+              </div>
+            )}
+
+            {/* Step by step guide */}
+            <div className="space-y-2 border-t border-stone-200 pt-3">
+              <div className="font-bold text-stone-900 text-xs">
+                Panduan Pemasangan Kode di Google Spreadsheet (Sekali Pasang):
+              </div>
+              <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-stone-600 leading-relaxed bg-stone-50 p-3 rounded-xl border border-stone-200">
+                <li>Buka Spreadsheet rekapan pengaduan Anda di Google Drive.</li>
+                <li>Klik menu <strong>Ekstensi (Extensions)</strong> &gt; <strong>Apps Script</strong>.</li>
+                <li>Hapus kode bawaan kosong, lalu tempel (Paste) seluruh kode di bawah ini.</li>
+                <li>Klik tombol <strong>Deploy</strong> (kanan atas) &gt; <strong>New deployment</strong>.</li>
+                <li>Pilih jenis <strong>Web app</strong>, ubah <em>Who has access</em> menjadi <strong>Anyone (Siapa saja)</strong>, lalu klik <strong>Deploy</strong>.</li>
+                <li>Salin <strong>Web app URL</strong> yang muncul dan tempelkan ke kolom URL di atas.</li>
+              </ol>
+            </div>
+
+            {/* Code Box with Copy */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-stone-800">Kode Google Apps Script:</span>
+                <button
+                  type="button"
+                  onClick={handleCopyScriptCode}
+                  className="px-2.5 py-1 text-[11px] font-semibold text-teal-800 bg-teal-50 border border-teal-300 hover:bg-teal-100 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  {copiedScript ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedScript ? 'Kode Berhasil Disalin!' : 'Salin Semua Kode'}</span>
+                </button>
+              </div>
+              <pre className="p-3 bg-stone-900 text-teal-300 font-mono text-[10px] rounded-xl overflow-x-auto max-h-48 leading-relaxed">
+                {APPS_SCRIPT_TEMPLATE_CODE}
+              </pre>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-stone-200">
+              <button
+                type="button"
+                onClick={() => setShowAppsScriptModal(false)}
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold rounded-lg cursor-pointer"
+              >
+                Tutup
               </button>
             </div>
           </div>
