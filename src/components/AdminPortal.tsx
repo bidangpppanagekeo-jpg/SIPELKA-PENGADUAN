@@ -3,7 +3,8 @@ import {
   Lock, Shield, CheckCircle2, AlertTriangle, Search, Filter, 
   Download, Printer, FileText, Send, User, MapPin, Calendar, 
   MessageSquare, ChevronRight, ChevronDown, Menu, X, Clock, Eye, ExternalLink, RefreshCw,
-  Table2, Check, AlertCircle, LogOut, Copy, LayoutDashboard, Users, CheckSquare, PhoneCall, Trash2
+  Table2, Check, AlertCircle, LogOut, Copy, LayoutDashboard, Users, CheckSquare, PhoneCall, Trash2,
+  Activity
 } from 'lucide-react';
 import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
 import { CATEGORY_LABELS, INITIAL_REPORTS } from '../data/mockData';
@@ -59,8 +60,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [pinCode, setPinCode] = useState<string>('');
   const [loginError, setLoginError] = useState<string>('');
 
-  // Sidebar navigation state: 'masuk' (Data Masuk) | 'verifikasi' (Verifikasi Pengaduan) | 'semua' (Semua Pengaduan)
-  const [sidebarTab, setSidebarTab] = useState<string>('masuk');
+  // Sidebar navigation state: 'masuk' (Data Masuk) | 'verifikasi' (Verifikasi Pengaduan) | 'dilanjutkan' (Kasus yang Dilanjutkan)
+  const [sidebarTab, setSidebarTab] = useState<'masuk' | 'verifikasi' | 'dilanjutkan' | 'semua'>('masuk');
 
   // Menu Utama Dropdown State (Di klik baru muncul agar layar tidak terkesan penuh)
   const [isMainMenuOpen, setIsMainMenuOpen] = useState<boolean>(false);
@@ -371,10 +372,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     let matchesSidebar = true;
     if (sidebarTab === 'masuk') matchesSidebar = item.status === 'masuk';
     else if (sidebarTab === 'verifikasi') matchesSidebar = item.status === 'verifikasi';
-    else if (sidebarTab === 'penjangkauan') matchesSidebar = item.status === 'penjangkauan';
-    else if (sidebarTab === 'pendampingan') matchesSidebar = item.status === 'pendampingan';
-    else if (sidebarTab === 'selesai') matchesSidebar = item.status === 'selesai';
-    else if (sidebarTab === 'darurat') matchesSidebar = item.urgency === 'darurat';
+    else if (sidebarTab === 'dilanjutkan') matchesSidebar = item.status !== 'masuk' && item.status !== 'verifikasi';
 
     const matchesStatusDropdown = filterStatus === 'semua' || item.status === filterStatus;
 
@@ -582,125 +580,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Menu Utama (Di klik baru muncul: Kirim Data, Tarik Data, Kode GS agar layar rapi & tidak penuh) */}
-            <div className="relative" ref={mainMenuRef}>
-              <button
-                type="button"
-                onClick={() => setIsMainMenuOpen((prev) => !prev)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                  isMainMenuOpen 
-                    ? 'bg-teal-700 text-white shadow-sm ring-1 ring-teal-400' 
-                    : 'bg-stone-800 hover:bg-stone-700 text-teal-300 hover:text-white border border-stone-700'
-                }`}
-                title="Buka Menu Utama Sinkronisasi Google Sheets"
-              >
-                <Table2 className="w-4 h-4 text-teal-300" />
-                <span>Menu Utama</span>
-                <ChevronDown className={`w-3.5 h-3.5 text-stone-400 transition-transform duration-150 ${isMainMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {/* Popover / Dropdown Menu Utama */}
-              {isMainMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 sm:w-88 bg-stone-900 text-stone-100 rounded-2xl shadow-2xl border border-stone-700 p-3.5 z-50 space-y-3">
-                  <div className="flex items-center justify-between border-b border-stone-800 pb-2.5">
-                    <div className="flex items-center gap-2 text-xs font-bold text-white">
-                      <Table2 className="w-4 h-4 text-teal-400" />
-                      <span>Menu Utama Integrasi Google Sheets</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsMainMenuOpen(false)}
-                      className="p-1 rounded-md text-stone-400 hover:text-white hover:bg-stone-800 cursor-pointer"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Status Ringkas Apps Script */}
-                  <div className="text-[11px] bg-stone-950 p-2.5 rounded-xl border border-stone-800 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-stone-300 font-medium">Status Webhook Google Sheets</span>
-                      <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        Siap Sinkron
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-stone-400 font-mono truncate">
-                      ID Proyek: {DEFAULT_APPS_SCRIPT_PROJECT_ID.slice(0, 18)}...
-                    </p>
-                  </div>
-
-                  {/* Tombol Aksi: Kirim Data, Tarik Data, Kode GS */}
-                  <div className="space-y-2 text-xs font-medium">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await handleSyncAppsScript();
-                      }}
-                      disabled={isSyncingAppsScript}
-                      className="w-full py-2.5 px-3 bg-teal-800 hover:bg-teal-700 active:bg-teal-900 text-white font-semibold rounded-xl flex items-center justify-between cursor-pointer transition-colors shadow-xs"
-                      title="Kirim seluruh data pengaduan saat ini ke Google Sheets"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Send className={`w-3.5 h-3.5 text-teal-200 ${isSyncingAppsScript ? 'animate-pulse' : ''}`} />
-                        <span>{isSyncingAppsScript ? 'Mengirim Data...' : 'Kirim Data ke Sheets'}</span>
-                      </div>
-                      <RefreshCw className={`w-3.5 h-3.5 text-teal-300 ${isSyncingAppsScript ? 'animate-spin' : ''}`} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await handlePullFromAppsScript();
-                      }}
-                      disabled={isSyncingAppsScript}
-                      className="w-full py-2.5 px-3 bg-stone-800 hover:bg-stone-700 active:bg-stone-800 text-teal-200 font-semibold rounded-xl border border-stone-700 flex items-center justify-between cursor-pointer transition-colors"
-                      title="Tarik data pengaduan terkini dari Google Sheets ke Dasbor"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Download className="w-3.5 h-3.5 text-teal-300" />
-                        <span>Tarik Data Sheets</span>
-                      </div>
-                      <span className="text-[10px] text-stone-400">Dari Sheets</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMainMenuOpen(false);
-                        setShowAppsScriptModal(true);
-                      }}
-                      className="w-full py-2.5 px-3 bg-stone-800 hover:bg-stone-700 text-stone-200 font-semibold rounded-xl border border-stone-700 flex items-center justify-between cursor-pointer transition-colors"
-                      title="Lihat Kode Google Apps Script & Atur URL Web App"
-                    >
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Kode GS & Web App URL</span>
-                      </div>
-                      <ChevronRight className="w-3.5 h-3.5 text-stone-400" />
-                    </button>
-                  </div>
-
-                  {appsScriptMsg && (
-                    <div className="p-2.5 bg-stone-950 rounded-xl border border-teal-900/60 text-[11px] text-teal-300 font-medium">
-                      {appsScriptMsg}
-                    </div>
-                  )}
-
-                  {activeSheet?.url && (
-                    <a
-                      href={activeSheet.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-center text-[11px] text-teal-300 hover:text-teal-200 underline pt-1 font-medium"
-                    >
-                      Buka Dokumen Spreadsheet Dinas ↗
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
-
             <button
               onClick={exportToCSV}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg transition-colors cursor-pointer border border-stone-700"
@@ -730,12 +609,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   Menu Rekapan
                 </span>
                 <nav className="space-y-1.5 text-xs font-medium">
-                  {/* Data Masuk */}
+                  {/* 1. Data Masuk (data yang baru di input oleh warga) */}
                   <button
                     onClick={() => setSidebarTab('masuk')}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
-                      sidebarTab === 'masuk' ? 'bg-teal-800 text-white font-bold shadow-sm' : 'hover:bg-stone-800 text-stone-300'
+                      sidebarTab === 'masuk' ? 'bg-teal-800 text-white font-bold shadow-sm ring-1 ring-teal-400' : 'hover:bg-stone-800 text-stone-300'
                     }`}
+                    title="Data pengaduan yang baru diinput oleh warga"
                   >
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-teal-300" />
@@ -746,12 +626,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     </span>
                   </button>
 
-                  {/* Verifikasi Pengaduan */}
+                  {/* 2. Verifikasi Pengaduan (data yang telah diverifikasi pada data masuk) */}
                   <button
                     onClick={() => setSidebarTab('verifikasi')}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
-                      sidebarTab === 'verifikasi' ? 'bg-teal-800 text-white font-bold shadow-sm' : 'hover:bg-stone-800 text-stone-300'
+                      sidebarTab === 'verifikasi' ? 'bg-teal-800 text-white font-bold shadow-sm ring-1 ring-teal-400' : 'hover:bg-stone-800 text-stone-300'
                     }`}
+                    title="Data yang telah diverifikasi pada data masuk"
                   >
                     <div className="flex items-center gap-2">
                       <CheckSquare className="w-4 h-4 text-teal-300" />
@@ -762,19 +643,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     </span>
                   </button>
 
-                  {/* Opsi Tampilkan Semua Kasus (Ringkas) */}
+                  {/* 3. Kasus yang Dilanjutkan (kasus yang telah lolos verifikasi dan akan ditindaklanjuti) */}
                   <button
-                    onClick={() => setSidebarTab('semua')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[11px] transition-all cursor-pointer mt-1 ${
-                      sidebarTab === 'semua' ? 'bg-stone-800 text-teal-300 font-bold' : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
+                    onClick={() => setSidebarTab('dilanjutkan')}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
+                      sidebarTab === 'dilanjutkan' ? 'bg-teal-800 text-white font-bold shadow-sm ring-1 ring-teal-400' : 'hover:bg-stone-800 text-stone-300'
                     }`}
+                    title="Kasus yang telah lolos verifikasi dan akan ditindaklanjuti"
                   >
                     <div className="flex items-center gap-2">
-                      <LayoutDashboard className="w-3.5 h-3.5" />
-                      <span>Semua Pengaduan</span>
+                      <Activity className="w-4 h-4 text-emerald-400" />
+                      <span>Kasus yang Dilanjutkan</span>
                     </div>
-                    <span className="text-[10px] font-mono">
-                      {reports.length}
+                    <span className="bg-stone-800 text-stone-300 px-2 py-0.5 rounded-full text-[10px] font-mono">
+                      {reports.filter(r => r.status !== 'masuk' && r.status !== 'verifikasi').length}
                     </span>
                   </button>
                 </nav>
@@ -851,7 +733,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               <span className="text-stone-500 font-mono text-[11px]">
-                Menampilkan {filteredReports.length} kasus ({sidebarTab})
+                Menampilkan {filteredReports.length} kasus ({sidebarTab === 'masuk' ? 'Data Masuk' : sidebarTab === 'verifikasi' ? 'Verifikasi' : 'Kasus Dilanjutkan'})
               </span>
             </div>
 
@@ -1126,6 +1008,117 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <span>Cetak Lembar Resmi</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Menu Utama (Kirim Data, Tarik Data, Kode GS - Muncul saat tombol Menu Utama diklik) */}
+      {isMainMenuOpen && (
+        <div className="fixed inset-0 z-70 bg-stone-950/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div 
+            ref={mainMenuRef}
+            className="bg-stone-900 text-stone-100 rounded-2xl max-w-md w-full p-5 shadow-2xl border border-stone-700 space-y-4 animate-in fade-in zoom-in-95 duration-150 my-auto"
+          >
+            <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-teal-800 text-teal-200 flex items-center justify-center shrink-0">
+                  <Table2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-white">Menu Utama Google Sheets</h3>
+                  <p className="text-[11px] text-stone-400">Sinkronisasi & Kelola Data Pengaduan Dinas</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMainMenuOpen(false)}
+                className="p-1 rounded-md text-stone-400 hover:text-white hover:bg-stone-800 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Status Ringkas Apps Script */}
+            <div className="text-[11px] bg-stone-950 p-2.5 rounded-xl border border-stone-800 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-stone-300 font-medium">Status Webhook Google Sheets</span>
+                <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Siap Sinkron
+                </span>
+              </div>
+              <p className="text-[10px] text-stone-400 font-mono truncate">
+                ID Proyek: {DEFAULT_APPS_SCRIPT_PROJECT_ID.slice(0, 18)}...
+              </p>
+            </div>
+
+            {/* Tombol Aksi: Kirim Data, Tarik Data, Kode GS */}
+            <div className="space-y-2 text-xs font-medium">
+              <button
+                type="button"
+                onClick={async () => {
+                  await handleSyncAppsScript();
+                }}
+                disabled={isSyncingAppsScript}
+                className="w-full py-2.5 px-3 bg-teal-800 hover:bg-teal-700 active:bg-teal-900 text-white font-semibold rounded-xl flex items-center justify-between cursor-pointer transition-colors shadow-xs"
+                title="Kirim seluruh data pengaduan saat ini ke Google Sheets"
+              >
+                <div className="flex items-center gap-2">
+                  <Send className={`w-3.5 h-3.5 text-teal-200 ${isSyncingAppsScript ? 'animate-pulse' : ''}`} />
+                  <span>{isSyncingAppsScript ? 'Mengirim Data...' : 'Kirim Data ke Sheets'}</span>
+                </div>
+                <RefreshCw className={`w-3.5 h-3.5 text-teal-300 ${isSyncingAppsScript ? 'animate-spin' : ''}`} />
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  await handlePullFromAppsScript();
+                }}
+                disabled={isSyncingAppsScript}
+                className="w-full py-2.5 px-3 bg-stone-800 hover:bg-stone-700 active:bg-stone-800 text-teal-200 font-semibold rounded-xl border border-stone-700 flex items-center justify-between cursor-pointer transition-colors"
+                title="Tarik data pengaduan terkini dari Google Sheets ke Dasbor"
+              >
+                <div className="flex items-center gap-2">
+                  <Download className="w-3.5 h-3.5 text-teal-300" />
+                  <span>Tarik Data Sheets</span>
+                </div>
+                <span className="text-[10px] text-stone-400">Dari Sheets</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMainMenuOpen(false);
+                  setShowAppsScriptModal(true);
+                }}
+                className="w-full py-2.5 px-3 bg-stone-800 hover:bg-stone-700 text-stone-200 font-semibold rounded-xl border border-stone-700 flex items-center justify-between cursor-pointer transition-colors"
+                title="Lihat Kode Google Apps Script & Atur URL Web App"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Kode GS & Web App URL</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-stone-400" />
+              </button>
+            </div>
+
+            {appsScriptMsg && (
+              <div className="p-2.5 bg-stone-950 rounded-xl border border-teal-900/60 text-[11px] text-teal-300 font-medium">
+                {appsScriptMsg}
+              </div>
+            )}
+
+            {activeSheet?.url && (
+              <a
+                href={activeSheet.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center text-[11px] text-teal-300 hover:text-teal-200 underline pt-1 font-medium"
+              >
+                Buka Dokumen Spreadsheet Dinas ↗
+              </a>
+            )}
           </div>
         </div>
       )}
