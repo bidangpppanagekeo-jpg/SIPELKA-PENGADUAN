@@ -16,6 +16,7 @@ import {
 import { 
   createComplaintSpreadsheet, 
   syncAllComplaintsToSpreadsheet, 
+  fetchComplaintsFromSpreadsheet,
   getSavedSpreadsheetInfo, 
   ActiveSpreadsheetInfo 
 } from '../services/googleSheets';
@@ -34,6 +35,7 @@ interface AdminPortalProps {
   onOfficerSendMessage: (ticketCode: string, messageText: string) => void;
   onClose: () => void;
   onOfficerLoginChange?: (email: string | null) => void;
+  onReportsSynced?: (newReports: ReportItem[]) => void;
 }
 
 const ALLOWED_OFFICER_EMAIL = 'bidangpppanagekeo@gmail.com';
@@ -44,7 +46,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onAddOfficerNote,
   onOfficerSendMessage,
   onClose,
-  onOfficerLoginChange
+  onOfficerLoginChange,
+  onReportsSynced
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [officerEmail, setOfficerEmail] = useState<string>('');
@@ -217,7 +220,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  // Perform confirmed sync to Google Sheets
+  // Perform confirmed 2-way sync to Google Sheets
   const handlePerformSync = async () => {
     setShowSyncConfirmModal(false);
     if (!googleToken) {
@@ -230,9 +233,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setSyncStatusMsg('');
     try {
       const targetSheetId = activeSheet?.id || (await createComplaintSpreadsheet(googleToken)).id;
+      // 1. Push local reports to Google Sheets
       const res = await syncAllComplaintsToSpreadsheet(googleToken, targetSheetId, reports);
+      // 2. Pull remote reports from Google Sheets (2-way sync)
+      const remoteReports = await fetchComplaintsFromSpreadsheet(googleToken, targetSheetId);
+      if (remoteReports && remoteReports.length > 0) {
+        onReportsSynced?.(remoteReports);
+      }
       setActiveSheet(getSavedSpreadsheetInfo());
-      setSyncStatusMsg(`Sukses! ${res.count} data pengaduan kasus berhasil disinkronkan ke Google Sheets.`);
+      setSyncStatusMsg(`Sukses 2-Arah! ${res.count} data dikirim & ${remoteReports.length} data diperbarui dari Google Sheets.`);
     } catch (e: any) {
       setSyncError(e.message || 'Gagal menyinkronkan data ke Google Sheets.');
     } finally {

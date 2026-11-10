@@ -1416,6 +1416,9 @@ export default function App() {
             );
           }}
           onClose={() => setIsAdminOpen(false)}
+          onReportsSynced={(newReports) => {
+            setReports(newReports);
+          }}
         />
       )}
 

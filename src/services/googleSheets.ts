@@ -1,4 +1,4 @@
-import { ReportItem } from '../types';
+import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
 import { CATEGORY_LABELS } from '../data/mockData';
 
 export const SHEETS_STORAGE_KEY = 'sipelka_nagekeo_active_spreadsheet';
@@ -125,7 +125,6 @@ export const createComplaintSpreadsheet = async (
 ): Promise<ActiveSpreadsheetInfo> => {
   const title = customTitle || `SI-PELKA Nagekeo - Rekapitulasi Pengaduan UPTD PPA (${new Date().getFullYear()})`;
 
-  // 1. Create spreadsheet with initial sheet
   const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
     method: 'POST',
     headers: {
@@ -133,16 +132,12 @@ export const createComplaintSpreadsheet = async (
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      properties: {
-        title: title
-      },
+      properties: { title: title },
       sheets: [
         {
           properties: {
             title: 'Data Pengaduan Masuk',
-            gridProperties: {
-              frozenRowCount: 1
-            }
+            gridProperties: { frozenRowCount: 1 }
           }
         }
       ]
@@ -158,16 +153,13 @@ export const createComplaintSpreadsheet = async (
   const spreadsheetId = sheetData.spreadsheetId;
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
 
-  // 2. Add styled header row
   await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/'Data Pengaduan Masuk'!A1:Y1?valueInputOption=USER_ENTERED`, {
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      values: [REPORT_SHEET_HEADERS]
-    })
+    body: JSON.stringify({ values: [REPORT_SHEET_HEADERS] })
   });
 
   const info: ActiveSpreadsheetInfo = {
@@ -201,9 +193,7 @@ export const appendComplaintToSpreadsheet = async (
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        values: [rowValues]
-      })
+      body: JSON.stringify({ values: [rowValues] })
     }
   );
 
@@ -213,7 +203,6 @@ export const appendComplaintToSpreadsheet = async (
     return false;
   }
 
-  // Update last synced time
   const current = getSavedSpreadsheetInfo();
   if (current && current.id === spreadsheetId) {
     saveSpreadsheetInfo({
@@ -227,14 +216,13 @@ export const appendComplaintToSpreadsheet = async (
 };
 
 /**
- * Bulk sync all reports into Google Sheets (overwriting or appending)
+ * Bulk sync all reports into Google Sheets
  */
 export const syncAllComplaintsToSpreadsheet = async (
   accessToken: string,
   spreadsheetId: string,
   reports: ReportItem[]
 ): Promise<{ count: number; url: string }> => {
-  // Overwrite starting from row 1 with headers + all current reports
   const allRows = [
     REPORT_SHEET_HEADERS,
     ...reports.map((r) => reportItemToRow(r))
@@ -248,9 +236,7 @@ export const syncAllComplaintsToSpreadsheet = async (
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        values: allRows
-      })
+      body: JSON.stringify({ values: allRows })
     }
   );
 
@@ -271,4 +257,117 @@ export const syncAllComplaintsToSpreadsheet = async (
 
   saveSpreadsheetInfo(info);
   return { count: reports.length, url: info.url };
+};
+
+/**
+ * Fetch 2-Way: Pull complaints from Google Sheets and convert back to ReportItem[]
+ */
+export const fetchComplaintsFromSpreadsheet = async (
+  accessToken: string,
+  spreadsheetId: string
+): Promise<ReportItem[]> => {
+  try {
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/'Data Pengaduan Masuk'!A1:Z500`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error('Gagal membaca data dari Google Sheets');
+    }
+
+    const data = await res.json();
+    const rows: string[][] = data.values || [];
+    if (rows.length <= 1) return [];
+
+    const header = rows[0];
+    const dataRows = rows.slice(1);
+
+    const fetchedReports: ReportItem[] = dataRows.map((row, index) => {
+      const ticketCode = row[0] || `PPA-NGK-2026-${1000 + index}`;
+      const dateStr = row[1] || new Date().toISOString();
+      const urgencyStr = (row[2] || 'mendesak').toLowerCase() as UrgencyLevel;
+      const categoryStr = row[3] || 'Kekerasan Fisik / KDRT';
+      const statusStr = (row[4] || 'masuk').toLowerCase() as CaseStatus;
+      const victimName = row[5] || 'Korban';
+      const victimGender = (row[6]?.toLowerCase().includes('perempuan') ? 'perempuan' : 'laki-laki') as 'perempuan' | 'laki-laki';
+      const victimAge = row[7] || '25';
+      const victimAddress = row[8] || 'Nagekeo';
+      const kecamatan = (row[9] || 'Aesesa') as NagekeoKecamatan;
+      const desaKelurahan = row[10] || 'Danga';
+      const incidentTimePlace = row[11] || '';
+      const incidentPlace = row[12] || 'Rumah';
+      const incidentDescription = row[13] || row[3] || 'Laporan pengaduan kasus.';
+      const perpetratorKnown = row[14]?.toLowerCase().includes('ya') || true;
+      const perpetratorName = row[15] || 'Terduga Pelaku';
+      const perpetratorAge = row[16] || '-';
+      const perpetratorRelationship = row[17] || 'Suami / Pasangan';
+      const perpetratorAddress = row[18] || '-';
+      const reporterName = row[19] || 'Pelapor';
+      const reporterRelationship = row[20] || 'Korban Sendiri';
+      const reporterContact = row[21] || '-';
+      const confidentiality = (row[22]?.toLowerCase() === 'anonim' ? 'anonim' : 'rahasia');
+      const servicesStr = row[23] || '';
+      const officerNoteStr = row[24] || 'Telaah UPTD PPA';
+
+      return {
+        id: `fetched_${index}_${Date.now()}`,
+        ticketCode,
+        secretPin: '111217',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        urgency: ['darurat', 'mendesak', 'standar'].includes(urgencyStr) ? urgencyStr : 'mendesak',
+        category: 'kdrt_fisik',
+        status: ['masuk', 'verifikasi', 'penjangkauan', 'pendampingan', 'selesai'].includes(statusStr) ? statusStr : 'masuk',
+        confidentiality,
+        victimName,
+        victimGender,
+        victimAge,
+        victimAddress,
+        kecamatan,
+        desaKelurahan,
+        incidentDate: new Date().toISOString().split('T')[0],
+        incidentTime: incidentTimePlace,
+        incidentPlace,
+        incidentDescription,
+        perpetratorKnown,
+        perpetratorName,
+        perpetratorAge,
+        perpetratorAddress,
+        perpetratorRelationship,
+        reporterName,
+        reporterRelationship,
+        reporterContact,
+        servicesNeeded: {
+          medisVisum: servicesStr.includes('Visum'),
+          rumahAman: servicesStr.includes('Rumah Aman'),
+          bantuanHukum: servicesStr.includes('Advokasi') || servicesStr.includes('Polres'),
+          konselingPsikologis: servicesStr.includes('Konseling') || servicesStr.includes('Trauma'),
+          mediasiKeluarga: servicesStr.includes('Mediasi'),
+          bantuanSosialDarurat: servicesStr.includes('Bansos')
+        },
+        attachments: [],
+        officerNotes: [
+          {
+            id: `note_${index}`,
+            officerName: 'Tim UPTD PPA Dinas PMDP3A',
+            date: dateStr,
+            summary: officerNoteStr,
+            actionPlan: 'Penanganan terpadu kasus.',
+            assignedUnit: 'UPTD PPA Kabupaten Nagekeo'
+          }
+        ],
+        messages: []
+      };
+    });
+
+    return fetchedReports;
+  } catch (err) {
+    console.error('Failed to fetch complaints from Google Sheets:', err);
+    throw err;
+  }
 };
