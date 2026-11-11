@@ -60,8 +60,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [pinCode, setPinCode] = useState<string>('');
   const [loginError, setLoginError] = useState<string>('');
 
-  // Sidebar navigation state: 'masuk' (Data Masuk) | 'verifikasi' (Verifikasi Pengaduan) | 'dilanjutkan' (Kasus yang Dilanjutkan)
-  const [sidebarTab, setSidebarTab] = useState<'masuk' | 'verifikasi' | 'dilanjutkan' | 'semua'>('masuk');
+  // Sidebar navigation state: 'masuk' (Data Masuk) | 'verifikasi' (Pengaduan Terverifikasi)
+  const [sidebarTab, setSidebarTab] = useState<'masuk' | 'verifikasi'>('masuk');
 
   // Menu Utama Dropdown State (Di klik baru muncul agar layar tidak terkesan penuh)
   const [isMainMenuOpen, setIsMainMenuOpen] = useState<boolean>(false);
@@ -92,11 +92,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [verificationSuccessNotice, setVerificationSuccessNotice] = useState<string>('');
 
   const handleVerifyCase = (ticketCode: string) => {
-    onUpdateStatus(ticketCode, 'dilanjutkan');
+    onUpdateStatus(ticketCode, 'verifikasi');
     if (selectedCase && selectedCase.ticketCode === ticketCode) {
-      setSelectedCase({ ...selectedCase, status: 'dilanjutkan' });
+      setSelectedCase({ ...selectedCase, status: 'verifikasi' });
     }
-    setVerificationSuccessNotice(`Kasus ${ticketCode} berhasil diverifikasi dan otomatis dialihkan ke menu "Kasus yang Dilanjutkan".`);
+    setVerificationSuccessNotice(`Kasus ${ticketCode} berhasil diverifikasi dan masuk ke menu "Pengaduan Terverifikasi".`);
     setTimeout(() => setVerificationSuccessNotice(''), 6000);
   };
   
@@ -379,8 +379,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
     let matchesSidebar = true;
     if (sidebarTab === 'masuk') matchesSidebar = item.status === 'masuk';
-    else if (sidebarTab === 'verifikasi') matchesSidebar = item.status === 'verifikasi';
-    else if (sidebarTab === 'dilanjutkan') matchesSidebar = item.status !== 'masuk' && item.status !== 'verifikasi';
+    else if (sidebarTab === 'verifikasi') matchesSidebar = item.status !== 'masuk';
 
     const matchesStatusDropdown = filterStatus === 'semua' || item.status === filterStatus;
 
@@ -637,7 +636,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     </span>
                   </button>
 
-                  {/* 2. Verifikasi Pengaduan (data yang telah diverifikasi pada data masuk) */}
+                  {/* 2. Pengaduan Terverifikasi */}
                   <button
                     onClick={() => {
                       setSidebarTab('verifikasi');
@@ -646,34 +645,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
                       sidebarTab === 'verifikasi' ? 'bg-teal-800 text-white font-bold shadow-sm ring-1 ring-teal-400' : 'hover:bg-stone-800 text-stone-300'
                     }`}
-                    title="Data yang telah diverifikasi pada data masuk"
+                    title="Pengaduan yang telah diverifikasi"
                   >
                     <div className="flex items-center gap-2">
                       <CheckSquare className="w-4 h-4 text-teal-300" />
-                      <span>Verifikasi Pengaduan</span>
+                      <span>Pengaduan Terverifikasi</span>
                     </div>
                     <span className="bg-stone-800 text-stone-300 px-2 py-0.5 rounded-full text-[10px] font-mono">
-                      {reports.filter(r => r.status === 'verifikasi').length}
-                    </span>
-                  </button>
-
-                  {/* 3. Kasus yang Dilanjutkan (kasus yang telah lolos verifikasi dan akan ditindaklanjuti) */}
-                  <button
-                    onClick={() => {
-                      setSidebarTab('dilanjutkan');
-                      setSelectedCase(null);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
-                      sidebarTab === 'dilanjutkan' ? 'bg-teal-800 text-white font-bold shadow-sm ring-1 ring-teal-400' : 'hover:bg-stone-800 text-stone-300'
-                    }`}
-                    title="Kasus yang telah lolos verifikasi dan akan ditindaklanjuti"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-emerald-400" />
-                      <span>Kasus yang Dilanjutkan</span>
-                    </div>
-                    <span className="bg-stone-800 text-stone-300 px-2 py-0.5 rounded-full text-[10px] font-mono">
-                      {reports.filter(r => r.status === 'dilanjutkan' || (!['masuk', 'verifikasi'].includes(r.status))).length}
+                      {reports.filter(r => r.status !== 'masuk').length}
                     </span>
                   </button>
                 </nav>
@@ -742,13 +721,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 >
                   <option value="semua">Semua Status</option>
                   <option value="masuk">Data Masuk</option>
-                  <option value="verifikasi">Verifikasi Pengaduan</option>
-                  <option value="dilanjutkan">Kasus yang Dilanjutkan</option>
+                  <option value="verifikasi">Terverifikasi</option>
                 </select>
               </div>
 
               <span className="text-stone-500 font-mono text-[11px]">
-                Menampilkan {filteredReports.length} kasus ({sidebarTab === 'masuk' ? 'Data Masuk' : sidebarTab === 'verifikasi' ? 'Verifikasi' : 'Kasus Dilanjutkan'})
+                Menampilkan {filteredReports.length} kasus ({sidebarTab === 'masuk' ? 'Data Masuk' : 'Pengaduan Terverifikasi'})
               </span>
             </div>
 
