@@ -757,28 +757,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                   <div className="flex flex-wrap items-center gap-2">
                     {/* Tombol Verifikasi Pengaduan & Otomatis Tindak Lanjuti */}
-                    {selectedCase.status !== 'dilanjutkan' ? (
+                    {selectedCase.status !== 'verifikasi' && selectedCase.status !== 'dilanjutkan' ? (
                       <div className="flex items-center gap-2">
-                        {selectedCase.status === 'masuk' && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onUpdateStatus(selectedCase.ticketCode, 'verifikasi');
-                              setSelectedCase({ ...selectedCase, status: 'verifikasi' });
-                              setVerificationSuccessNotice(`Kasus ${selectedCase.ticketCode} ditandai untuk Verifikasi Pengaduan.`);
-                              setTimeout(() => setVerificationSuccessNotice(''), 5000);
-                            }}
-                            className="px-3 py-2 text-xs font-semibold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl cursor-pointer transition-colors"
-                            title="Tandai kasus untuk proses verifikasi berkas"
-                          >
-                            Tandai Perlu Verifikasi
-                          </button>
-                        )}
                         <button
                           type="button"
                           onClick={() => handleVerifyCase(selectedCase.ticketCode)}
                           className="px-4 py-2 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer"
-                          title="Verifikasi kasus ini dan otomatis lanjutkan untuk ditindaklanjuti"
+                          title="Verifikasi kasus ini dan lanjutkan untuk ditindaklanjuti"
                         >
                           <CheckCircle2 className="w-4 h-4 text-emerald-200" />
                           <span>Verifikasi & Tindak Lanjuti</span>
