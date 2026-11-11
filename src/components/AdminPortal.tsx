@@ -7,6 +7,7 @@ import {
   Activity, ArrowLeft
 } from 'lucide-react';
 import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
+import { maskVictimName, maskPhoneNumber } from '../utils/security';
 import { CATEGORY_LABELS, INITIAL_REPORTS } from '../data/mockData';
 import { 
   initAuth, 
@@ -90,6 +91,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // Selected case for detailed full-width review (null = list view)
   const [selectedCase, setSelectedCase] = useState<ReportItem | null>(null);
   const [verificationSuccessNotice, setVerificationSuccessNotice] = useState<string>('');
+  const [isPrivacyMasked, setIsPrivacyMasked] = useState<boolean>(true);
 
   const handleVerifyCase = (ticketCode: string) => {
     onUpdateStatus(ticketCode, 'verifikasi');
@@ -588,6 +590,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setIsPrivacyMasked(!isPrivacyMasked)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer border ${
+                isPrivacyMasked ? 'bg-teal-900/60 text-teal-200 border-teal-700' : 'bg-stone-800 text-stone-300 border-stone-700'
+              }`}
+              title="Aktifkan/Nonaktifkan Masking Data Korban untuk Privasi Siber"
+            >
+              <Shield className="w-3.5 h-3.5 text-teal-400" />
+              <span>{isPrivacyMasked ? 'Privasi Korban: Terlindungi' : 'Privasi Korban: Terbuka'}</span>
+            </button>
+
+            <button
               onClick={exportToCSV}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg transition-colors cursor-pointer border border-stone-700"
               title="Unduh Data Kasus ke Format Spreadsheet"
@@ -833,7 +846,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       <span>Identitas Korban</span>
                     </div>
                     <div className="space-y-1 text-xs">
-                      <div><span className="text-stone-400 text-[11px]">Nama Korban:</span> <strong className="text-stone-900">{selectedCase.victimName}</strong></div>
+                      <div><span className="text-stone-400 text-[11px]">Nama Korban:</span> <strong className="text-stone-900">{isPrivacyMasked ? maskVictimName(selectedCase.victimName) : selectedCase.victimName}</strong></div>
                       <div><span className="text-stone-400 text-[11px]">Jenis Kelamin / Usia:</span> <span className="text-stone-700 font-medium capitalize">{selectedCase.victimGender} · {selectedCase.victimAge} Tahun</span></div>
                       <div><span className="text-stone-400 text-[11px]">Alamat Domisili:</span> <span className="text-stone-800">{selectedCase.victimAddress}</span></div>
                       <div className="flex items-center gap-1 text-stone-600 text-[11px] pt-1">
@@ -854,7 +867,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       <div className="pt-1">
                         <span className="text-stone-400 text-[11px] block">Kontak / Nomor Telepon:</span>
                         <span className="text-teal-900 font-bold font-mono text-sm bg-teal-50 px-2.5 py-1 rounded-md border border-teal-200 inline-block mt-0.5">
-                          {selectedCase.reporterContact || 'Tidak dicantumkan'}
+                          {isPrivacyMasked ? maskPhoneNumber(selectedCase.reporterContact) : (selectedCase.reporterContact || 'Tidak dicantumkan')}
                         </span>
                       </div>
                     </div>
@@ -977,7 +990,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               </h4>
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-600">
                                 <div>
-                                  <span className="text-stone-400 text-[11px]">Korban:</span> <strong className="text-stone-800">{item.victimName}</strong> ({item.victimGender}, {item.victimAge} th)
+                                  <span className="text-stone-400 text-[11px]">Korban:</span> <strong className="text-stone-800">{isPrivacyMasked ? maskVictimName(item.victimName) : item.victimName}</strong> ({item.victimGender}, {item.victimAge} th)
                                 </div>
                                 <div>
                                   <span className="text-stone-400 text-[11px]">Pelapor:</span> <span className="text-stone-700">{item.reporterName} ({item.reporterRelationship})</span>

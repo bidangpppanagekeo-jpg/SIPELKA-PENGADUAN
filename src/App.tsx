@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { NAGEKEO_KECAMATAN_DATA, EMERGENCY_CONTACTS, CATEGORY_LABELS, INITIAL_REPORTS } from './data/mockData';
 import { ReportItem, CaseStatus, ReportCategory, NagekeoKecamatan, ConfidentialityLevel } from './types';
+import { sanitizeInput, attachSecurityShield } from './utils/security';
 import { DisguiseView } from './components/DisguiseView';
 import { AdminPortal } from './components/AdminPortal';
 import { GuidebookModal } from './components/GuidebookModal';
@@ -55,6 +56,14 @@ export default function App() {
     });
     return () => {
       if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  // Attach anti-inspection / cybersecurity shield
+  useEffect(() => {
+    const detach = attachSecurityShield(true);
+    return () => {
+      if (detach) detach();
     };
   }, []);
 
@@ -212,12 +221,19 @@ export default function App() {
       return;
     }
 
+    const sanitizedVictimName = sanitizeInput(victimName);
+    const sanitizedReporterName = sanitizeInput(reporterName);
+    const sanitizedReporterContact = sanitizeInput(reporterContact);
+    const sanitizedIncidentStory = sanitizeInput(incidentStory);
+    const sanitizedPerpetratorName = sanitizeInput(perpetratorName);
+    const sanitizedVictimAddress = sanitizeInput(victimAddressDetail);
+
     const randomTicketNum = Math.floor(1000 + Math.random() * 9000);
     const randomPin = Math.floor(1000 + Math.random() * 9000).toString();
     const ticketCode = `PPA-NGK-${new Date().getFullYear()}-${randomTicketNum}`;
 
-    const fullVictimAddress = victimAddressDetail.trim()
-      ? `${victimAddressDetail.trim()}, Desa ${desaKelurahan}, Kec. ${kecamatan}`
+    const fullVictimAddress = sanitizedVictimAddress
+      ? `${sanitizedVictimAddress}, Desa ${desaKelurahan}, Kec. ${kecamatan}`
       : `Desa ${desaKelurahan}, Kec. ${kecamatan}, Kab. Nagekeo`;
 
     const newReport: ReportItem = {
@@ -232,7 +248,7 @@ export default function App() {
       confidentiality,
 
       // 1. DATA KORBAN
-      victimName: confidentiality === 'anonim' ? `Korban (${victimName ? victimName.charAt(0) + '...' : 'Inisial'})` : victimName.trim(),
+      victimName: confidentiality === 'anonim' ? `Korban (${sanitizedVictimName ? sanitizedVictimName.charAt(0) + '...' : 'Inisial'})` : (sanitizedVictimName || 'Tanpa Nama'),
       victimGender,
       victimAge: victimAge.trim() || 'Dewasa',
       victimAddress: fullVictimAddress,
@@ -241,19 +257,19 @@ export default function App() {
       incidentDate,
       incidentTime,
       incidentPlace,
-      incidentDescription: incidentStory.trim(),
+      incidentDescription: sanitizedIncidentStory,
 
       // 2. DATA PELAKU
       perpetratorKnown,
-      perpetratorName: perpetratorKnown ? (perpetratorName.trim() || 'Pihak Terlapor') : 'Tidak Diketahui',
+      perpetratorName: perpetratorKnown ? (sanitizedPerpetratorName || 'Pihak Terlapor') : 'Tidak Diketahui',
       perpetratorAge: perpetratorKnown ? (perpetratorAge.trim() || '-') : '-',
       perpetratorAddress: perpetratorKnown ? (perpetratorAddress.trim() || '-') : '-',
       perpetratorRelationship: perpetratorKnown ? perpetratorRelationship : 'Orang Tidak Dikenal',
 
       // 3. DATA PELAPOR
-      reporterName: confidentiality === 'anonim' ? 'Pelapor (Dirahasiakan)' : (reporterName.trim() || 'Warga Nagekeo'),
+      reporterName: confidentiality === 'anonim' ? 'Pelapor (Dirahasiakan)' : (sanitizedReporterName || 'Warga Nagekeo'),
       reporterRelationship,
-      reporterContact: reporterContact.trim(),
+      reporterContact: sanitizedReporterContact,
 
       servicesNeeded: {
         medisVisum: needVisum,
