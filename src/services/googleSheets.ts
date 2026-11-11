@@ -357,7 +357,7 @@ export const fetchComplaintsFromSpreadsheet = async (
         updatedAt: new Date().toISOString(),
         urgency: ['darurat', 'mendesak', 'standar'].includes(urgencyStr) ? urgencyStr : 'mendesak',
         category: categoryKey,
-        status: ['masuk', 'verifikasi', 'penjangkauan', 'pendampingan', 'selesai'].includes(statusStr) ? statusStr : 'masuk',
+        status: ['masuk', 'verifikasi', 'dilanjutkan', 'penjangkauan', 'pendampingan', 'selesai'].includes(statusStr) ? statusStr : 'masuk',
         confidentiality,
         victimName,
         victimGender,

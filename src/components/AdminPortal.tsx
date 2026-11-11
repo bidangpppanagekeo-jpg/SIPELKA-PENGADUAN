@@ -4,7 +4,7 @@ import {
   Download, Printer, FileText, Send, User, MapPin, Calendar, 
   MessageSquare, ChevronRight, ChevronDown, Menu, X, Clock, Eye, ExternalLink, RefreshCw,
   Table2, Check, AlertCircle, LogOut, Copy, LayoutDashboard, Users, CheckSquare, PhoneCall, Trash2,
-  Activity
+  Activity, ArrowLeft
 } from 'lucide-react';
 import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
 import { CATEGORY_LABELS, INITIAL_REPORTS } from '../data/mockData';
@@ -87,10 +87,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [filterStatus, setFilterStatus] = useState<string>('semua');
   const [filterUrgency, setFilterUrgency] = useState<string>('semua');
 
-  // Selected case for detailed review
-  const [selectedCase, setSelectedCase] = useState<ReportItem | null>(() => {
-    return reports.find(r => r.status === 'masuk') || reports[0] || null;
-  });
+  // Selected case for detailed full-width review (null = list view)
+  const [selectedCase, setSelectedCase] = useState<ReportItem | null>(null);
+  const [verificationSuccessNotice, setVerificationSuccessNotice] = useState<string>('');
+
+  const handleVerifyCase = (ticketCode: string) => {
+    onUpdateStatus(ticketCode, 'dilanjutkan');
+    if (selectedCase && selectedCase.ticketCode === ticketCode) {
+      setSelectedCase({ ...selectedCase, status: 'dilanjutkan' });
+    }
+    setVerificationSuccessNotice(`Kasus ${ticketCode} berhasil diverifikasi dan otomatis dialihkan ke menu "Kasus yang Dilanjutkan".`);
+    setTimeout(() => setVerificationSuccessNotice(''), 6000);
+  };
   
   // Note formulation
   const [newNoteSummary, setNewNoteSummary] = useState<string>('');
@@ -123,7 +131,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     onDeleteReport?.(deletedTicketCode);
 
     const remaining = reports.filter((r) => r.ticketCode !== deletedTicketCode);
-    setSelectedCase(remaining[0] || null);
+    setSelectedCase(null);
 
     // 1. If connected via Google Sheets OAuth, sync deletion directly
     if (googleToken && activeSheet?.id) {
@@ -611,7 +619,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <nav className="space-y-1.5 text-xs font-medium">
                   {/* 1. Data Masuk (data yang baru di input oleh warga) */}
                   <button
-                    onClick={() => setSidebarTab('masuk')}
+                    onClick={() => {
+                      setSidebarTab('masuk');
+                      setSelectedCase(null);
+                    }}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
                       sidebarTab === 'masuk' ? 'bg-teal-800 text-white font-bold shadow-sm ring-1 ring-teal-400' : 'hover:bg-stone-800 text-stone-300'
                     }`}
@@ -628,7 +639,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                   {/* 2. Verifikasi Pengaduan (data yang telah diverifikasi pada data masuk) */}
                   <button
-                    onClick={() => setSidebarTab('verifikasi')}
+                    onClick={() => {
+                      setSidebarTab('verifikasi');
+                      setSelectedCase(null);
+                    }}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
                       sidebarTab === 'verifikasi' ? 'bg-teal-800 text-white font-bold shadow-sm ring-1 ring-teal-400' : 'hover:bg-stone-800 text-stone-300'
                     }`}
@@ -645,7 +659,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                   {/* 3. Kasus yang Dilanjutkan (kasus yang telah lolos verifikasi dan akan ditindaklanjuti) */}
                   <button
-                    onClick={() => setSidebarTab('dilanjutkan')}
+                    onClick={() => {
+                      setSidebarTab('dilanjutkan');
+                      setSelectedCase(null);
+                    }}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
                       sidebarTab === 'dilanjutkan' ? 'bg-teal-800 text-white font-bold shadow-sm ring-1 ring-teal-400' : 'hover:bg-stone-800 text-stone-300'
                     }`}
@@ -656,7 +673,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       <span>Kasus yang Dilanjutkan</span>
                     </div>
                     <span className="bg-stone-800 text-stone-300 px-2 py-0.5 rounded-full text-[10px] font-mono">
-                      {reports.filter(r => r.status !== 'masuk' && r.status !== 'verifikasi').length}
+                      {reports.filter(r => r.status === 'dilanjutkan' || (!['masuk', 'verifikasi'].includes(r.status))).length}
                     </span>
                   </button>
                 </nav>
@@ -686,7 +703,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
           </div>
 
-          {/* MAIN CONTENT AREA (9 cols: Filters + Master-Detail) */}
+          {/* MAIN CONTENT AREA (9 cols: Filters + Single Screen Content) */}
           <div className="lg:col-span-9 flex flex-col overflow-hidden bg-white">
             
             {/* Filter Toolbar */}
@@ -721,14 +738,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="border border-stone-300 rounded-lg px-2 py-1.5 bg-white text-xs"
+                  className="border border-stone-300 rounded-lg px-2.5 py-1.5 bg-white text-xs font-medium"
                 >
                   <option value="semua">Semua Status</option>
-                  <option value="masuk">Masuk</option>
-                  <option value="verifikasi">Verifikasi</option>
-                  <option value="penjangkauan">Penjangkauan</option>
-                  <option value="pendampingan">Pendampingan</option>
-                  <option value="selesai">Selesai</option>
+                  <option value="masuk">Data Masuk</option>
+                  <option value="verifikasi">Verifikasi Pengaduan</option>
+                  <option value="dilanjutkan">Kasus yang Dilanjutkan</option>
                 </select>
               </div>
 
@@ -737,70 +752,318 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </span>
             </div>
 
-            {/* Master-Detail Split Layout */}
-            <div className="grid lg:grid-cols-12 flex-1 overflow-hidden divide-y lg:divide-y-0 lg:divide-x divide-stone-200">
-              
-              {/* Left List (5 cols) */}
-              <div className="lg:col-span-5 overflow-y-auto divide-y divide-stone-100 max-h-[350px] lg:max-h-none">
-                {filteredReports.length > 0 ? (
-                  filteredReports.map((item) => {
-                    const isSelected = selectedCase?.ticketCode === item.ticketCode;
-                    return (
-                      <div
-                        key={item.id}
-                        onClick={() => setSelectedCase(item)}
-                        className={`p-3.5 cursor-pointer transition-colors text-xs ${
-                          isSelected
-                            ? 'bg-teal-50 border-l-4 border-l-teal-800'
-                            : 'hover:bg-stone-50'
-                        }`}
+            {/* Single Screen Display: When selectedCase is null, show ONLY the list. When clicked, show ONLY the details */}
+            {selectedCase ? (
+              /* RINCIAN KASUS (Single Screen Detail View) */
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 text-xs bg-white">
+                {/* Top Navigation & Verification Action Header */}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-4">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCase(null)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-xl transition-colors cursor-pointer border border-stone-300"
+                      title="Kembali ke Daftar Kasus"
+                    >
+                      <ArrowLeft className="w-4 h-4 text-stone-600" />
+                      <span>Kembali ke Daftar Kasus</span>
+                    </button>
+
+                    <div>
+                      <span className="text-[10px] text-stone-500 uppercase tracking-wider block font-semibold">Nomor Berkas:</span>
+                      <h3 className="text-base font-bold font-mono text-stone-900 leading-tight">
+                        {selectedCase.ticketCode}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Tombol Verifikasi Pengaduan & Otomatis Tindak Lanjuti */}
+                    {selectedCase.status !== 'dilanjutkan' ? (
+                      <div className="flex items-center gap-2">
+                        {selectedCase.status === 'masuk' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onUpdateStatus(selectedCase.ticketCode, 'verifikasi');
+                              setSelectedCase({ ...selectedCase, status: 'verifikasi' });
+                              setVerificationSuccessNotice(`Kasus ${selectedCase.ticketCode} ditandai untuk Verifikasi Pengaduan.`);
+                              setTimeout(() => setVerificationSuccessNotice(''), 5000);
+                            }}
+                            className="px-3 py-2 text-xs font-semibold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl cursor-pointer transition-colors"
+                            title="Tandai kasus untuk proses verifikasi berkas"
+                          >
+                            Tandai Perlu Verifikasi
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleVerifyCase(selectedCase.ticketCode)}
+                          className="px-4 py-2 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+                          title="Verifikasi kasus ini dan otomatis lanjutkan untuk ditindaklanjuti"
+                        >
+                          <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                          <span>Verifikasi & Tindak Lanjuti</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl font-bold text-xs">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>Kasus Lolos Verifikasi · Dalam Tindak Lanjut</span>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => setIsPrintingBAP(true)}
+                      className="px-3 py-2 text-xs font-semibold text-stone-700 bg-white border border-stone-300 hover:bg-stone-50 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Cetak BAP</span>
+                    </button>
+
+                    <button
+                      onClick={() => setShowDeleteConfirmModal(true)}
+                      className="px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      title="Hapus Kasus dari Dashboard & Google Sheets"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                      <span>Hapus Kasus</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Success Notification Banner */}
+                {verificationSuccessNotice && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 font-semibold text-xs flex items-center gap-2 animate-in fade-in">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{verificationSuccessNotice}</span>
+                  </div>
+                )}
+
+                {/* Status & Priority Badge Banner */}
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-stone-50 rounded-xl border border-stone-200">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase ${
+                      selectedCase.urgency === 'darurat' ? 'bg-rose-100 text-rose-800 border border-rose-200' : selectedCase.urgency === 'mendesak' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-teal-100 text-teal-800 border border-teal-200'
+                    }`}>
+                      Prioritas: {selectedCase.urgency}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-stone-200 text-stone-800 capitalize">
+                      Status: {selectedCase.status === 'dilanjutkan' ? 'Kasus yang Dilanjutkan' : selectedCase.status === 'verifikasi' ? 'Verifikasi Pengaduan' : 'Data Masuk'}
+                    </span>
+                    <span className="text-stone-700 font-semibold text-xs px-2 py-1 bg-white border border-stone-200 rounded-lg">
+                      Kategori: {CATEGORY_LABELS[selectedCase.category]?.label || selectedCase.category}
+                    </span>
+                  </div>
+
+                  <div className="text-[11px] text-stone-500 font-mono flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                    <span>Tanggal Pengaduan: {new Date(selectedCase.createdAt).toLocaleString('id-ID')}</span>
+                  </div>
+                </div>
+
+                {/* 2-Column Info: Identitas Korban & Pelapor */}
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 space-y-2">
+                    <div className="flex items-center gap-2 text-stone-900 font-bold text-xs pb-1 border-b border-stone-200">
+                      <User className="w-4 h-4 text-teal-700" />
+                      <span>Identitas Korban</span>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <div><span className="text-stone-400 text-[11px]">Nama Korban:</span> <strong className="text-stone-900">{selectedCase.victimName}</strong></div>
+                      <div><span className="text-stone-400 text-[11px]">Jenis Kelamin / Usia:</span> <span className="text-stone-700 font-medium capitalize">{selectedCase.victimGender} · {selectedCase.victimAge} Tahun</span></div>
+                      <div><span className="text-stone-400 text-[11px]">Alamat Domisili:</span> <span className="text-stone-800">{selectedCase.victimAddress}</span></div>
+                      <div className="flex items-center gap-1 text-stone-600 text-[11px] pt-1">
+                        <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                        <span>Desa/Kel: {selectedCase.desaKelurahan}, Kec. {selectedCase.kecamatan}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 space-y-2">
+                    <div className="flex items-center gap-2 text-stone-900 font-bold text-xs pb-1 border-b border-stone-200">
+                      <PhoneCall className="w-4 h-4 text-teal-700" />
+                      <span>Identitas Pelapor & Kontak</span>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <div><span className="text-stone-400 text-[11px]">Nama Pelapor:</span> <strong className="text-stone-900">{selectedCase.reporterName}</strong></div>
+                      <div><span className="text-stone-400 text-[11px]">Hubungan dg Korban:</span> <span className="text-stone-700 font-medium">{selectedCase.reporterRelationship}</span></div>
+                      <div className="pt-1">
+                        <span className="text-stone-400 text-[11px] block">Kontak / Nomor Telepon:</span>
+                        <span className="text-teal-900 font-bold font-mono text-sm bg-teal-50 px-2.5 py-1 rounded-md border border-teal-200 inline-block mt-0.5">
+                          {selectedCase.reporterContact || 'Tidak dicantumkan'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Layanan yang Dibutuhkan */}
+                {selectedCase.servicesNeeded && Object.values(selectedCase.servicesNeeded).some(Boolean) && (
+                  <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200 space-y-1.5">
+                    <span className="font-bold text-stone-900 block text-xs">Layanan Terpadu yang Dibutuhkan Korban:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedCase.servicesNeeded.medisVisum && (
+                        <span className="px-2.5 py-1 bg-white border border-stone-300 rounded-lg text-[11px] font-medium text-stone-700">✓ Layanan Medis / Visum</span>
+                      )}
+                      {selectedCase.servicesNeeded.bantuanHukum && (
+                        <span className="px-2.5 py-1 bg-white border border-stone-300 rounded-lg text-[11px] font-medium text-stone-700">✓ Bantuan Advokasi Hukum</span>
+                      )}
+                      {selectedCase.servicesNeeded.konselingPsikologis && (
+                        <span className="px-2.5 py-1 bg-white border border-stone-300 rounded-lg text-[11px] font-medium text-stone-700">✓ Konseling Psikologis</span>
+                      )}
+                      {selectedCase.servicesNeeded.rumahAman && (
+                        <span className="px-2.5 py-1 bg-white border border-stone-300 rounded-lg text-[11px] font-medium text-stone-700">✓ Perlindungan Rumah Aman</span>
+                      )}
+                      {selectedCase.servicesNeeded.mediasiKeluarga && (
+                        <span className="px-2.5 py-1 bg-white border border-stone-300 rounded-lg text-[11px] font-medium text-stone-700">✓ Mediasi Keluarga</span>
+                      )}
+                      {selectedCase.servicesNeeded.bantuanSosialDarurat && (
+                        <span className="px-2.5 py-1 bg-white border border-stone-300 rounded-lg text-[11px] font-medium text-stone-700">✓ Bantuan Sosial Darurat</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Uraian Kronologi Kejadian */}
+                <div className="space-y-1.5">
+                  <span className="font-bold text-stone-900 block text-xs">Uraian Kronologi Kejadian:</span>
+                  <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl leading-relaxed text-stone-800 text-xs whitespace-pre-wrap">
+                    {selectedCase.incidentDescription}
+                  </div>
+                </div>
+
+                {/* Lembar Catatan Penanganan UPTD PPA */}
+                <div className="space-y-3 pt-3 border-t border-stone-200">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-stone-900 block text-xs">Lembar Catatan Penanganan UPTD PPA</span>
+                    <span className="text-[11px] text-stone-500 font-mono">{selectedCase.officerNotes.length} catatan tercatat</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {selectedCase.officerNotes.map((note) => (
+                      <div key={note.id} className="p-3.5 bg-stone-50 rounded-xl border border-stone-200 space-y-1">
+                        <div className="flex justify-between text-[11px] text-stone-500">
+                          <span className="font-bold text-teal-900">{note.officerName} ({note.assignedUnit})</span>
+                          <span className="font-mono">{note.date}</span>
+                        </div>
+                        <p className="text-stone-800"><strong>Asesmen:</strong> {note.summary}</p>
+                        <p className="text-stone-600"><strong>Tindakan:</strong> {note.actionPlan}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <form onSubmit={handleAddNote} className="bg-stone-50 p-4 rounded-xl border border-stone-200 space-y-3">
+                    <span className="font-semibold text-stone-800 block text-xs">Tambah Catatan Petugas Baru</span>
+                    <input
+                      type="text"
+                      value={newNoteSummary}
+                      onChange={(e) => setNewNoteSummary(e.target.value)}
+                      placeholder="Ringkasan hasil kunjungan lapangan atau asesmen kasus..."
+                      className="w-full text-xs border border-stone-300 rounded-lg p-2.5 bg-white focus:outline-none focus:border-teal-700"
+                      required
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        className="px-4 py-2 text-xs font-semibold text-white bg-teal-800 hover:bg-teal-900 rounded-lg cursor-pointer shadow-xs transition-colors"
                       >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-mono font-bold text-stone-900">{item.ticketCode}</span>
-                          <div className="flex items-center gap-1">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                              item.urgency === 'darurat' ? 'bg-rose-100 text-rose-800' : item.urgency === 'mendesak' ? 'bg-amber-100 text-amber-800' : 'bg-teal-100 text-teal-800'
-                            }`}>
-                              {item.urgency}
-                            </span>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-stone-100 text-stone-700 capitalize">
-                              {item.status}
-                            </span>
+                        Simpan Catatan
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            ) : (
+              /* DAFTAR KASUS (Single Screen List View - Full Width) */
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-stone-50 space-y-3">
+                {filteredReports.length > 0 ? (
+                  <div className="grid gap-3">
+                    {filteredReports.map((item) => {
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => setSelectedCase(item)}
+                          className="bg-white p-4 sm:p-5 rounded-2xl border border-stone-200 hover:border-teal-600 hover:shadow-md transition-all cursor-pointer group space-y-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
+                            <div className="flex items-center gap-2.5">
+                              <span className="font-mono font-bold text-sm text-stone-900 group-hover:text-teal-800 transition-colors">
+                                {item.ticketCode}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                item.urgency === 'darurat' ? 'bg-rose-100 text-rose-800' : item.urgency === 'mendesak' ? 'bg-amber-100 text-amber-800' : 'bg-teal-100 text-teal-800'
+                              }`}>
+                                {item.urgency}
+                              </span>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-stone-100 text-stone-700 capitalize">
+                                {item.status === 'dilanjutkan' ? 'Kasus Dilanjutkan' : item.status === 'verifikasi' ? 'Verifikasi' : 'Data Masuk'}
+                              </span>
+                            </div>
+
+                            <div className="text-[11px] text-stone-400 font-mono flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                              <span>{new Date(item.createdAt).toLocaleDateString('id-ID', { dateStyle: 'medium' })}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="space-y-1 max-w-2xl">
+                              <h4 className="font-bold text-stone-900 text-xs sm:text-sm group-hover:text-teal-900 transition-colors">
+                                {CATEGORY_LABELS[item.category]?.label || item.category}
+                              </h4>
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-600">
+                                <div>
+                                  <span className="text-stone-400 text-[11px]">Korban:</span> <strong className="text-stone-800">{item.victimName}</strong> ({item.victimGender}, {item.victimAge} th)
+                                </div>
+                                <div>
+                                  <span className="text-stone-400 text-[11px]">Pelapor:</span> <span className="text-stone-700">{item.reporterName} ({item.reporterRelationship})</span>
+                                </div>
+                              </div>
+                              <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed pt-1">
+                                "{item.incidentDescription}"
+                              </p>
+                            </div>
+
+                            <div className="flex flex-col items-end justify-between shrink-0 self-stretch sm:self-auto gap-2">
+                              <div className="flex items-center gap-1 text-[11px] text-stone-500">
+                                <MapPin className="w-3.5 h-3.5 text-teal-700" />
+                                <span>Desa {item.desaKelurahan}, Kec. {item.kecamatan}</span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedCase(item);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 group-hover:bg-teal-700 text-teal-800 group-hover:text-white rounded-xl text-xs font-semibold transition-all cursor-pointer border border-teal-200 group-hover:border-teal-700 shadow-2xs"
+                              >
+                                <span>Buka Rincian Kasus</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         </div>
-
-                        <div className="font-semibold text-stone-800 mb-0.5">
-                          {CATEGORY_LABELS[item.category]?.label || item.category}
-                        </div>
-
-                        <div className="text-[11px] text-stone-500 flex items-center justify-between">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3 text-stone-400" />
-                            Desa {item.desaKelurahan}, Kec. {item.kecamatan}
-                          </span>
-                          <span className="font-mono text-stone-400">
-                            {new Date(item.createdAt).toLocaleDateString('id-ID')}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })}
+                  </div>
                 ) : (
-                  <div className="p-8 text-center text-xs text-stone-500 space-y-3">
-                    <p>Tidak ada data pengaduan yang cocok pada kategori ini.</p>
+                  <div className="p-12 text-center text-xs text-stone-500 space-y-3 bg-white rounded-2xl border border-stone-200">
+                    <p className="text-stone-600 font-medium">Tidak ada data pengaduan yang cocok pada kategori ini.</p>
                     {reports.length === 0 && (
-                      <div className="flex flex-col gap-2 pt-2">
+                      <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
                         <button
                           type="button"
                           onClick={handleRestoreSampleReports}
-                          className="px-3 py-2 bg-teal-800 text-white rounded-lg font-semibold hover:bg-teal-900 cursor-pointer shadow-xs transition-colors"
+                          className="px-3.5 py-2 bg-teal-800 text-white rounded-lg font-semibold hover:bg-teal-900 cursor-pointer shadow-xs transition-colors"
                         >
                           Muat Ulang Data Awal Kasus
                         </button>
                         <button
                           type="button"
                           onClick={handlePullFromAppsScript}
-                          className="px-3 py-2 bg-stone-100 text-stone-700 rounded-lg font-semibold hover:bg-stone-200 cursor-pointer border border-stone-300 transition-colors"
+                          className="px-3.5 py-2 bg-stone-100 text-stone-700 rounded-lg font-semibold hover:bg-stone-200 cursor-pointer border border-stone-300 transition-colors"
                         >
                           Tarik Data dari Google Sheets
                         </button>
@@ -809,134 +1072,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </div>
                 )}
               </div>
-
-              {/* Right Detail (7 cols) */}
-              <div className="lg:col-span-7 overflow-y-auto p-5 space-y-5 text-xs">
-                {selectedCase ? (
-                  <>
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3">
-                      <div>
-                        <span className="text-[11px] text-stone-500 block">Nomor Berkas:</span>
-                        <h3 className="text-base font-bold font-mono text-stone-900">
-                          {selectedCase.ticketCode}
-                        </h3>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-lg">
-                          <span className="text-[10px] font-medium text-stone-600 px-1.5">Ubah Status:</span>
-                          {(['masuk', 'verifikasi', 'penjangkauan', 'pendampingan', 'selesai'] as CaseStatus[]).map((st) => (
-                            <button
-                              key={st}
-                              onClick={() => {
-                                onUpdateStatus(selectedCase.ticketCode, st);
-                                setSelectedCase({ ...selectedCase, status: st });
-                              }}
-                              className={`px-2 py-0.5 text-[10px] font-semibold rounded capitalize transition-all cursor-pointer ${
-                                selectedCase.status === st
-                                  ? 'bg-teal-800 text-white shadow-2xs'
-                                  : 'text-stone-600 hover:text-stone-900'
-                              }`}
-                            >
-                              {st}
-                            </button>
-                          ))}
-                        </div>
-
-                        <button
-                          onClick={() => setIsPrintingBAP(true)}
-                          className="px-3 py-1.5 text-xs font-semibold text-stone-700 bg-white border border-stone-300 hover:bg-stone-50 rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          <span>Cetak BAP</span>
-                        </button>
-
-                        <button
-                          onClick={() => setShowDeleteConfirmModal(true)}
-                          className="px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs"
-                          title="Hapus Kasus dari Dashboard & Google Sheets"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                          <span>Hapus Kasus</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid sm:grid-cols-2 gap-3 bg-stone-50 p-3.5 rounded-xl border border-stone-200">
-                      <div>
-                        <span className="text-stone-400 block text-[10px]">Identitas Korban:</span>
-                        <span className="font-bold text-stone-900 block">{selectedCase.victimName}</span>
-                        <span className="text-stone-500 text-[11px]">
-                          {selectedCase.victimGender} · Usia: {selectedCase.victimAge} th
-                        </span>
-                        <span className="text-stone-600 block text-[11px] mt-0.5">
-                          Alamat: {selectedCase.victimAddress}
-                        </span>
-                      </div>
-
-                      <div>
-                        <span className="text-stone-400 block text-[10px]">Pelapor & Kontak:</span>
-                        <span className="font-bold text-stone-900 block">{selectedCase.reporterName}</span>
-                        <span className="text-stone-500 text-[11px]">
-                          Hubungan: {selectedCase.reporterRelationship}
-                        </span>
-                        <span className="text-teal-800 font-semibold block text-[11px] mt-0.5">
-                          Kontak: {selectedCase.reporterContact || 'Tidak dicantumkan'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <span className="font-bold text-stone-900 block">Uraian Kronologi Kejadian:</span>
-                      <div className="p-3 bg-white border border-stone-200 rounded-xl leading-relaxed text-stone-700 italic">
-                        "{selectedCase.incidentDescription}"
-                      </div>
-                    </div>
-
-                    {/* Officer Notes & Chat */}
-                    <div className="space-y-3 pt-2 border-t border-stone-200">
-                      <span className="font-bold text-stone-900 block">Lembar Catatan Penanganan UPTD PPA</span>
-                      <div className="space-y-2">
-                        {selectedCase.officerNotes.map((note) => (
-                          <div key={note.id} className="p-3 bg-stone-50 rounded-lg border border-stone-200 space-y-1">
-                            <div className="flex justify-between text-[11px] text-stone-500">
-                              <span className="font-bold text-teal-900">{note.officerName}</span>
-                              <span className="font-mono">{note.date}</span>
-                            </div>
-                            <p className="text-stone-800"><strong>Asesmen:</strong> {note.summary}</p>
-                            <p className="text-stone-600"><strong>Tindakan:</strong> {note.actionPlan}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      <form onSubmit={handleAddNote} className="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2">
-                        <span className="font-semibold text-stone-800 block">Tambah Catatan / Berita Acara Baru</span>
-                        <input
-                          type="text"
-                          value={newNoteSummary}
-                          onChange={(e) => setNewNoteSummary(e.target.value)}
-                          placeholder="Ringkasan hasil kunjungan lapangan..."
-                          className="w-full text-xs border border-stone-300 rounded p-2 bg-white focus:outline-none focus:border-teal-700"
-                          required
-                        />
-                        <div className="flex justify-end">
-                          <button
-                            type="submit"
-                            className="px-3 py-1.5 text-xs font-semibold text-white bg-teal-800 hover:bg-teal-900 rounded cursor-pointer"
-                          >
-                            Simpan Catatan
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  </>
-                ) : (
-                  <div className="p-12 text-center text-xs text-stone-400">
-                    Pilih salah satu nomor berkas kasus pada daftar di sebelah kiri untuk melihat detail dan melakukan tindakan.
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

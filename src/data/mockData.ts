@@ -84,7 +84,7 @@ export const INITIAL_REPORTS: ReportItem[] = [
     updatedAt: '2026-11-08T14:15:00Z',
     urgency: 'darurat',
     category: 'kdrt_fisik',
-    status: 'pendampingan',
+    status: 'dilanjutkan',
     confidentiality: 'rahasia',
 
     // Data Korban
@@ -156,7 +156,7 @@ export const INITIAL_REPORTS: ReportItem[] = [
     updatedAt: '2026-11-08T10:00:00Z',
     urgency: 'mendesak',
     category: 'perkawinan_anak',
-    status: 'penjangkauan',
+    status: 'dilanjutkan',
     confidentiality: 'rahasia',
 
     // Data Korban
@@ -284,5 +284,61 @@ export const INITIAL_REPORTS: ReportItem[] = [
       }
     ],
     assignedOfficer: 'Siti Rahmawati, S.Tr.Sos'
+  },
+  {
+    id: 'rep_004',
+    ticketCode: 'PPA-NGK-2026-5575',
+    secretPin: '5575',
+    createdAt: '2026-11-10T08:15:00Z',
+    updatedAt: '2026-11-10T08:15:00Z',
+    urgency: 'mendesak',
+    category: 'kdrt_fisik',
+    status: 'masuk',
+    confidentiality: 'terbuka',
+
+    // Data Korban
+    victimName: 'Ibu Veronika D.',
+    victimGender: 'perempuan',
+    victimAge: '28',
+    victimAddress: 'Dusun III Desa Danga, Kec. Aesesa, Kab. Nagekeo',
+    kecamatan: 'Aesesa',
+    desaKelurahan: 'Danga',
+    incidentDate: '2026-11-09',
+    incidentTime: '19:00 WITA',
+    incidentPlace: 'Rumah Keluarga',
+    incidentDescription: 'Korban melapor mengalami kekerasan psikis dan ancaman penelantaran ekonomi rumah tangga yang berlangsung sejak dua bulan terakhir.',
+
+    // Data Pelaku
+    perpetratorKnown: true,
+    perpetratorName: 'Suami Korban',
+    perpetratorAge: '33',
+    perpetratorAddress: 'Desa Danga, Kec. Aesesa',
+    perpetratorRelationship: 'Suami',
+
+    // Data Pelapor
+    reporterName: 'Veronika D.',
+    reporterRelationship: 'Korban Sendiri',
+    reporterContact: '0812-9844-3120',
+
+    servicesNeeded: {
+      medisVisum: false,
+      bantuanHukum: true,
+      konselingPsikologis: true,
+      rumahAman: false,
+      mediasiKeluarga: true,
+      bantuanSosialDarurat: false
+    },
+    attachments: [],
+    officerNotes: [
+      {
+        id: 'note_4',
+        officerName: 'Tim UPTD PPA Dinas PMDP3A',
+        date: '2026-11-10 08:30 WITA',
+        summary: 'Pengaduan baru masuk secara daring melalui portal SI-PELKA Nagekeo. Menunggu verifikasi tim reaksi cepat.',
+        actionPlan: 'Verifikasi kelengkapan berkas dan kontak pelapor untuk tindak lanjut.',
+        assignedUnit: 'Tim Reaksi Cepat UPTD PPA Nagekeo'
+      }
+    ],
+    messages: []
   }
 ];

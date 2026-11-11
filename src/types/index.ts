@@ -13,6 +13,7 @@ export type ReportCategory =
 export type CaseStatus =
   | 'masuk'
   | 'verifikasi'
+  | 'dilanjutkan'
   | 'penjangkauan'
   | 'pendampingan'
   | 'selesai';
