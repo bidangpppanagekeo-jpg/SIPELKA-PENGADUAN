@@ -8,7 +8,14 @@ import {
 } from 'lucide-react';
 import { NAGEKEO_KECAMATAN_DATA, EMERGENCY_CONTACTS, CATEGORY_LABELS, INITIAL_REPORTS } from './data/mockData';
 import { ReportItem, CaseStatus, ReportCategory, NagekeoKecamatan, ConfidentialityLevel } from './types';
-import { sanitizeInput, attachSecurityShield } from './utils/security';
+import { 
+  sanitizeInput, 
+  attachSecurityShield, 
+  detectMaliciousInput, 
+  checkSubmissionRateLimit, 
+  recordSubmissionTimestamp, 
+  executeEmergencyExit 
+} from './utils/security';
 import { DisguiseView } from './components/DisguiseView';
 import { AdminPortal } from './components/AdminPortal';
 import { GuidebookModal } from './components/GuidebookModal';
@@ -27,46 +34,6 @@ import {
 const OFFICIAL_DINAS_EMAIL = 'bidangpppanagekeo@gmail.com';
 
 export default function App() {
-  // Load reports from localStorage with fallback
-  const [reports, setReports] = useState<ReportItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('sipelka_nagekeo_reports') || localStorage.getItem('sapa_nagekeo_reports');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
-    }
-    return INITIAL_REPORTS;
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('sipelka_nagekeo_reports', JSON.stringify(reports));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [reports]);
-
-  // Real-time synchronization from Firestore cloud across all devices
-  useEffect(() => {
-    seedInitialReportsIfEmpty();
-    const unsubscribe = subscribeToReports((liveReports) => {
-      if (liveReports && liveReports.length > 0) {
-        setReports(liveReports);
-      }
-    });
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, []);
-
-  // Attach anti-inspection / cybersecurity shield
-  useEffect(() => {
-    const detach = attachSecurityShield(true);
-    return () => {
-      if (detach) detach();
-    };
-  }, []);
-
   const [isDisguised, setIsDisguised] = useState<boolean>(false);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
@@ -82,6 +49,53 @@ export default function App() {
   });
 
   const isDinasOfficer = currentOfficerEmail?.trim().toLowerCase() === OFFICIAL_DINAS_EMAIL;
+
+  // Secure reports state: In a public environment, complaints are strictly confidential
+  // and are ONLY loaded into memory when the authorized Dinas Officer is logged in.
+  const [reports, setReports] = useState<ReportItem[]>(() => {
+    try {
+      const activeOfficer = localStorage.getItem('sipelka_officer_email');
+      if (activeOfficer === OFFICIAL_DINAS_EMAIL) {
+        const saved = localStorage.getItem('sipelka_nagekeo_reports');
+        if (saved) return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      if (currentOfficerEmail === OFFICIAL_DINAS_EMAIL && reports.length > 0) {
+        localStorage.setItem('sipelka_nagekeo_reports', JSON.stringify(reports));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [reports, currentOfficerEmail]);
+
+  // Real-time synchronization from Firestore cloud - strictly gated to Authorized Dinas Officer
+  useEffect(() => {
+    if (!isAdminOpen && !isDinasOfficer) return;
+
+    const unsubscribe = subscribeToReports((liveReports) => {
+      if (liveReports && liveReports.length > 0) {
+        setReports(liveReports);
+      }
+    });
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [isAdminOpen, isDinasOfficer]);
+
+  // Attach anti-inspection / cybersecurity shield
+  useEffect(() => {
+    const detach = attachSecurityShield(true);
+    return () => {
+      if (detach) detach();
+    };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = initAuth(
@@ -164,9 +178,9 @@ export default function App() {
   const [submittedTicket, setSubmittedTicket] = useState<ReportItem | null>(null);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
 
-  // Quick exit handler
+  // Quick exit handler with privacy cache wiper
   const handleQuickExit = () => {
-    window.location.replace('https://www.google.com/search?q=cuaca+mbay+nagekeo+ntt');
+    executeEmergencyExit();
   };
 
   // Keyboard shortcut Esc
@@ -216,8 +230,27 @@ export default function App() {
   const handleSubmitReport = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 1. Anti-spam / Bot flooding defense: 30 seconds rate-limit between submissions
+    const rateCheck = checkSubmissionRateLimit();
+    if (!rateCheck.allowed) {
+      alert(`Sistem Keamanan: Mohon tunggu ${rateCheck.remainingSeconds} detik sebelum mengirim pengaduan baru guna mencegah spam/penyalahgunaan sistem.`);
+      return;
+    }
+
     if (!incidentStory.trim()) {
       alert('Mohon ceritakan uraian singkat kejadian yang dialami.');
+      return;
+    }
+
+    // 2. Anti SQL Injection & XSS signature detection
+    if (
+      detectMaliciousInput(incidentStory) ||
+      detectMaliciousInput(victimName) ||
+      detectMaliciousInput(reporterContact) ||
+      detectMaliciousInput(perpetratorName) ||
+      detectMaliciousInput(victimAddressDetail)
+    ) {
+      alert('Sistem Keamanan: Karakter berbahaya atau pola skrip/SQL tidak diizinkan. Mohon ketikkan keterangan narasi biasa tanpa kode.');
       return;
     }
 
@@ -304,6 +337,7 @@ export default function App() {
     setReports([newReport, ...reports]);
     setSubmittedTicket(newReport);
     setFormStep(4); // Success step
+    recordSubmissionTimestamp();
 
     // Auto-sync ke Cloud Firestore, Google Apps Script Web App, dan Google Sheets
     (async () => {
@@ -499,6 +533,9 @@ export default function App() {
                   </label>
                   <input
                     type="text"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={reporterName}
                     onChange={(e) => setReporterName(e.target.value)}
                     placeholder="Masukkan nama lengkap / panggilan Anda"
@@ -517,6 +554,7 @@ export default function App() {
                   <input
                     type="tel"
                     inputMode="tel"
+                    autoComplete="off"
                     value={reporterContact}
                     onChange={(e) => setReporterContact(e.target.value)}
                     placeholder="Contoh: 0812-3456-7890 (Mudah dihubungi petugas)"
@@ -599,6 +637,9 @@ export default function App() {
                   </div>
                   <input
                     type="text"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={victimName}
                     onChange={(e) => setVictimName(e.target.value)}
                     placeholder="Masukkan nama korban (contoh: Maria T. / Inisial M.)"
@@ -897,6 +938,9 @@ export default function App() {
                   </div>
                   <textarea
                     rows={3}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={incidentStory}
                     onChange={(e) => setIncidentStory(e.target.value)}
                     placeholder="Jelaskan apa yang terjadi, apa ancaman yang dihadapi, luka fisik yang dialami, dsb."

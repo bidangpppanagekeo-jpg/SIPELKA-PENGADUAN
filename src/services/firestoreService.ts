@@ -4,8 +4,7 @@ import {
   collection, 
   doc, 
   setDoc, 
-  getDoc,
-  getDocs, 
+  getDoc, 
   updateDoc, 
   deleteDoc, 
   onSnapshot, 
@@ -15,13 +14,60 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { ReportItem } from '../types';
-import { INITIAL_REPORTS } from '../data/mockData';
+import { auth } from './googleAuth';
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Security / Operation Error:', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 /**
- * Test server connection
+ * Test server connection safely
  */
 export const testFirestoreConnection = async () => {
   try {
@@ -35,42 +81,36 @@ export const testFirestoreConnection = async () => {
 testFirestoreConnection();
 
 /**
- * Save a new or updated report to Firestore
+ * Save a new public complaint to Firestore (Zero-Trust write)
  */
 export const saveReportToFirestore = async (report: ReportItem): Promise<void> => {
+  const path = `reports/${report.ticketCode}`;
   try {
     const docRef = doc(db, 'reports', report.ticketCode);
     await setDoc(docRef, report, { merge: true });
   } catch (error) {
-    console.error('Gagal menyimpan pengaduan ke Firestore:', error);
+    handleFirestoreError(error, OperationType.CREATE, path);
   }
 };
 
 /**
- * Seed initial sample reports if collection is empty
+ * Seed initial sample reports - Disabled in production to protect data integrity and avoid mock leaks
  */
 export const seedInitialReportsIfEmpty = async (): Promise<void> => {
-  try {
-    const snap = await getDocs(collection(db, 'reports'));
-    if (snap.empty) {
-      for (const rep of INITIAL_REPORTS) {
-        await setDoc(doc(db, 'reports', rep.ticketCode), rep);
-      }
-    }
-  } catch (error) {
-    console.warn('Seed initial reports notice:', error);
-  }
+  // In production, real complaints submitted by citizens are stored directly.
+  // Mock seeding is intentionally bypassed to maintain absolute clean real records.
 };
 
 /**
- * Subscribe to all reports in real-time from Firestore
+ * Subscribe to all reports in real-time from Firestore (Authorized for Dinas Officer)
  */
 export const subscribeToReports = (
   onSuccess: (reports: ReportItem[]) => void,
   onError?: (err: Error) => void
 ) => {
+  const path = 'reports';
   try {
-    const q = query(collection(db, 'reports'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, path), orderBy('createdAt', 'desc'));
     return onSnapshot(
       q,
       (snapshot) => {
@@ -78,29 +118,27 @@ export const subscribeToReports = (
         snapshot.forEach((docSnap) => {
           loaded.push(docSnap.data() as ReportItem);
         });
-        if (loaded.length > 0) {
-          onSuccess(loaded);
-        }
+        onSuccess(loaded);
       },
       (err) => {
-        console.error('Firestore snapshot listener error:', err);
+        console.warn('Firestore subscription notice (Restricted to Authorized Officer):', err.message);
         if (onError) onError(err);
       }
     );
   } catch (error: any) {
-    console.error('Failed to setup Firestore subscription:', error);
     if (onError) onError(error);
     return () => {};
   }
 };
 
 /**
- * Update report status or notes in Firestore
+ * Update report status or notes in Firestore (Restricted to Authorized Officer)
  */
 export const updateReportInFirestore = async (
   ticketCode: string,
   partial: Partial<ReportItem>
 ): Promise<void> => {
+  const path = `reports/${ticketCode}`;
   try {
     const docRef = doc(db, 'reports', ticketCode);
     await updateDoc(docRef, {
@@ -108,26 +146,28 @@ export const updateReportInFirestore = async (
       updatedAt: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Gagal memperbarui pengaduan di Firestore:', error);
+    handleFirestoreError(error, OperationType.UPDATE, path);
   }
 };
 
 /**
- * Delete a report from Firestore
+ * Delete a report from Firestore (Restricted to Authorized Officer)
  */
 export const deleteReportFromFirestore = async (ticketCode: string): Promise<void> => {
+  const path = `reports/${ticketCode}`;
   try {
     const docRef = doc(db, 'reports', ticketCode);
     await deleteDoc(docRef);
   } catch (error) {
-    console.error('Gagal menghapus pengaduan dari Firestore:', error);
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 };
 
 /**
- * Fetch a single report by ticketCode (for public tracking)
+ * Fetch a single report by ticketCode
  */
 export const getReportByTicketCode = async (ticketCode: string): Promise<ReportItem | null> => {
+  const path = `reports/${ticketCode}`;
   try {
     const docRef = doc(db, 'reports', ticketCode.trim().toUpperCase());
     const snap = await getDoc(docRef);
@@ -135,7 +175,7 @@ export const getReportByTicketCode = async (ticketCode: string): Promise<ReportI
       return snap.data() as ReportItem;
     }
   } catch (error) {
-    console.error('Gagal mencari tiket di Firestore:', error);
+    handleFirestoreError(error, OperationType.GET, path);
   }
   return null;
 };

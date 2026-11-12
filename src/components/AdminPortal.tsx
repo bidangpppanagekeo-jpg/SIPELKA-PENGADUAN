@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
 import { CATEGORY_LABELS, INITIAL_REPORTS } from '../data/mockData';
+import { checkAdminLoginRateLimit, recordFailedAdminLogin, resetAdminLoginAttempts } from '../utils/security';
 import { 
   initAuth, 
   signInWithGoogle, 
@@ -345,24 +346,42 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  // Authentication handler strictly validating bidangpppanagekeo@gmail.com
+  // Authentication handler strictly validating bidangpppanagekeo@gmail.com with brute-force defense
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const limitCheck = checkAdminLoginRateLimit();
+    if (limitCheck.locked) {
+      setLoginError(`Sistem Terkunci: Terlalu banyak percobaan gagal. Silakan tunggu ${limitCheck.remainingMinutes} menit demi keamanan data korban.`);
+      return;
+    }
+
     const cleanEmail = officerEmail.trim().toLowerCase();
     
     if (cleanEmail !== ALLOWED_OFFICER_EMAIL) {
-      setLoginError('Akses Ditolak: Fitur Petugas Dinas HANYA terbuka untuk email dinas resmi yang terdaftar.');
+      const result = recordFailedAdminLogin();
+      if (result.locked) {
+        setLoginError('Akses Ditolak: Batas percobaan terlampaui. Sistem terkunci selama 5 menit.');
+      } else {
+        setLoginError(`Akses Ditolak: Email tidak terdaftar sebagai petugas resmi. Sisa percobaan: ${result.remainingAttempts}`);
+      }
       setIsAuthenticated(false);
       onOfficerLoginChange?.(null);
       return;
     }
 
-    if (pinCode === '111217' || pinCode === 'admin') {
+    if (pinCode === '111217') {
+      resetAdminLoginAttempts();
       setIsAuthenticated(true);
       setLoginError('');
       onOfficerLoginChange?.(ALLOWED_OFFICER_EMAIL);
     } else {
-      setLoginError('Kode PIN Petugas tidak sah. Silakan periksa kembali PIN Anda.');
+      const result = recordFailedAdminLogin();
+      if (result.locked) {
+        setLoginError('Kode PIN salah. Batas percobaan terlampaui. Portal dikunci selama 5 menit demi keamanan siber.');
+      } else {
+        setLoginError(`Kode PIN Petugas tidak sah. Silakan periksa kembali PIN Anda. Sisa percobaan: ${result.remainingAttempts}`);
+      }
     }
   };
 

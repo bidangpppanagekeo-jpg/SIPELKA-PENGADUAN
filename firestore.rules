@@ -3,22 +3,71 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default deny catch-all
+    // 1. Default deny catch-all: Semua dokumen diblokir secara default (Zero-Trust)
     match /{document=**} {
       allow read, write: if false;
     }
 
+    // Helper: Validasi status autentikasi pengguna
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper: Validasi khusus Petugas Resmi UPTD PPA Dinas PMDP3A Kabupaten Nagekeo
+    function isDinasOfficer() {
+      return isSignedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email.lower() == 'bidangpppanagekeo@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    // Helper: Validasi ID dokumen mencegah ID Poisoning & Karakter Anomali
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Helper: Validasi Struktur & Batasan Ukuran Payload Pengaduan (Anti-Resource Exhaustion)
+    function isValidReport(data) {
+      return data.ticketCode is string
+        && data.ticketCode.size() > 0
+        && data.ticketCode.size() <= 50
+        && data.ticketCode.matches('^PPA-NGK-[0-9]{4}-[0-9]{1,6}$')
+        && data.victimName is string
+        && data.victimName.size() > 0
+        && data.victimName.size() <= 200
+        && data.incidentDescription is string
+        && data.incidentDescription.size() > 0
+        && data.incidentDescription.size() <= 10000
+        && data.status is string
+        && (data.status == 'masuk' || data.status == 'verifikasi' || data.status == 'penjangkauan' || data.status == 'pendampingan' || data.status == 'selesai')
+        && data.urgency is string
+        && (data.urgency == 'darurat' || data.urgency == 'mendesak' || data.urgency == 'standar')
+        && data.createdAt is string
+        && data.createdAt.size() <= 64;
+    }
+
+    // Koleksi Laporan Kasus Kekerasan Perempuan dan Anak
     match /reports/{reportId} {
-      // Publik (seluruh masyarakat) dapat membuat laporan pengaduan
-      allow create: if request.resource.data.ticketCode is string
-        && request.resource.data.victimName is string
-        && request.resource.data.incidentDescription is string;
+      // 1. PUBLIK (Warga Masyarakat Nagekeo):
+      // Hanya diizinkan membuat laporan baru (CREATE) dengan status awal 'masuk' dan struktur valid.
+      // Masyarakat TIDAK diizinkan membaca atau mengintip laporan warga lain.
+      allow create: if isValidId(reportId)
+        && isValidReport(request.resource.data)
+        && request.resource.data.status == 'masuk';
 
-      // Pelapor dapat melacak nomor tiket dan Petugas Dinas dapat mengelola di dasbor
-      allow read: if true;
+      // 2. AKSES BACA (LIST & GET):
+      // Hanya Petugas Resmi Dinas PMDP3A yang sah (bidangpppanagekeo@gmail.com) yang dapat mengakses
+      // seluruh rekapitulasi data korban, melindungi privasi dan keselamatan korban di ranah publik.
+      allow read: if isDinasOfficer();
 
-      // Pembaruan status/catatan atau penghapusan kasus oleh petugas dinas
-      allow update, delete: if true;
+      // 3. PEMBARUAN DATA (UPDATE):
+      // Hanya Petugas Resmi Dinas yang dapat mengubah status kasus, menambah catatan tindak lanjut, dll.
+      allow update: if isDinasOfficer()
+        && isValidReport(request.resource.data);
+
+      // 4. PENGHAPUSAN KASUS (DELETE):
+      // Hanya Petugas Resmi Dinas yang berwenang menghapus berkas kasus.
+      allow delete: if isDinasOfficer();
     }
   }
 }

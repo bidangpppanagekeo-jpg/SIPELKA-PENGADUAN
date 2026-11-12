@@ -2,42 +2,171 @@
   "entities": {
     "Report": {
       "title": "Report",
-      "description": "Pengaduan kasus kekerasan perempuan dan anak di Kabupaten Nagekeo",
+      "description": "Dokumen pengaduan kasus kekerasan perempuan dan anak UPTD PPA Kabupaten Nagekeo",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "ticketCode": { "type": "string" },
-        "secretPin": { "type": "string" },
-        "createdAt": { "type": "string" },
-        "updatedAt": { "type": "string" },
-        "urgency": { "type": "string", "enum": ["darurat", "mendesak", "standar"] },
-        "category": { "type": "string" },
-        "status": { "type": "string", "enum": ["masuk", "verifikasi", "penjangkauan", "pendampingan", "selesai"] },
-        "confidentiality": { "type": "string", "enum": ["anonim", "rahasia", "terbuka"] },
-        "victimName": { "type": "string" },
-        "victimGender": { "type": "string", "enum": ["perempuan", "laki-laki"] },
-        "victimAge": { "type": "string" },
-        "victimAddress": { "type": "string" },
-        "kecamatan": { "type": "string" },
-        "desaKelurahan": { "type": "string" },
-        "incidentDate": { "type": "string" },
-        "incidentTime": { "type": "string" },
-        "incidentPlace": { "type": "string" },
-        "incidentDescription": { "type": "string" },
-        "perpetratorKnown": { "type": "boolean" },
-        "perpetratorName": { "type": "string" },
-        "perpetratorAge": { "type": "string" },
-        "perpetratorAddress": { "type": "string" },
-        "perpetratorRelationship": { "type": "string" },
-        "reporterName": { "type": "string" },
-        "reporterRelationship": { "type": "string" },
-        "reporterContact": { "type": "string" },
-        "servicesNeeded": { "type": "object" },
-        "attachments": { "type": "array" },
-        "officerNotes": { "type": "array" },
-        "messages": { "type": "array" }
+        "id": {
+          "type": "string",
+          "description": "Identifier unik dokumen pengaduan",
+          "maxLength": 128
+        },
+        "ticketCode": {
+          "type": "string",
+          "description": "Kode registrasi tiket berkas kasus",
+          "pattern": "^PPA-NGK-[0-9]{4}-[0-9]{1,6}$",
+          "maxLength": 50
+        },
+        "secretPin": {
+          "type": "string",
+          "description": "Kode PIN rahasia pelacak kasus",
+          "maxLength": 16
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Waktu penerimaan berkas pengaduan (ISO 8601)",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Waktu pembaruan status berkas pengaduan",
+          "maxLength": 64
+        },
+        "urgency": {
+          "type": "string",
+          "description": "Tingkat kegawatan kasus",
+          "enum": ["darurat", "mendesak", "standar"]
+        },
+        "category": {
+          "type": "string",
+          "description": "Kategori tindak kekerasan",
+          "maxLength": 100
+        },
+        "status": {
+          "type": "string",
+          "description": "Tahapan penanganan kasus",
+          "enum": ["masuk", "verifikasi", "penjangkauan", "pendampingan", "selesai"]
+        },
+        "confidentiality": {
+          "type": "string",
+          "description": "Tingkat kerahasiaan identitas",
+          "enum": ["anonim", "rahasia", "terbuka"]
+        },
+        "victimName": {
+          "type": "string",
+          "description": "Nama lengkap / nama panggilan korban",
+          "maxLength": 200
+        },
+        "victimGender": {
+          "type": "string",
+          "description": "Jenis kelamin korban",
+          "enum": ["perempuan", "laki-laki"]
+        },
+        "victimAge": {
+          "type": "string",
+          "description": "Usia korban saat kejadian",
+          "maxLength": 50
+        },
+        "victimAddress": {
+          "type": "string",
+          "description": "Alamat domisili lengkap korban",
+          "maxLength": 500
+        },
+        "kecamatan": {
+          "type": "string",
+          "description": "Kecamatan di Kabupaten Nagekeo",
+          "maxLength": 100
+        },
+        "desaKelurahan": {
+          "type": "string",
+          "description": "Desa atau kelurahan domisili kejadian",
+          "maxLength": 100
+        },
+        "incidentDate": {
+          "type": "string",
+          "description": "Tanggal terjadinya kekerasan",
+          "maxLength": 30
+        },
+        "incidentTime": {
+          "type": "string",
+          "description": "Waktu terjadinya kekerasan",
+          "maxLength": 50
+        },
+        "incidentPlace": {
+          "type": "string",
+          "description": "Lokasi atau tempat kejadian perkara",
+          "maxLength": 200
+        },
+        "incidentDescription": {
+          "type": "string",
+          "description": "Uraian kronologi kejadian",
+          "maxLength": 10000
+        },
+        "perpetratorKnown": {
+          "type": "boolean",
+          "description": "Apakah pelaku diketahui identitasnya"
+        },
+        "perpetratorName": {
+          "type": "string",
+          "description": "Nama terduga pelaku",
+          "maxLength": 200
+        },
+        "perpetratorAge": {
+          "type": "string",
+          "description": "Usia terduga pelaku",
+          "maxLength": 50
+        },
+        "perpetratorAddress": {
+          "type": "string",
+          "description": "Alamat domisili terduga pelaku",
+          "maxLength": 500
+        },
+        "perpetratorRelationship": {
+          "type": "string",
+          "description": "Hubungan terduga pelaku dengan korban",
+          "maxLength": 100
+        },
+        "reporterName": {
+          "type": "string",
+          "description": "Nama pelapor pengaduan",
+          "maxLength": 200
+        },
+        "reporterRelationship": {
+          "type": "string",
+          "description": "Hubungan pelapor dengan korban",
+          "maxLength": 100
+        },
+        "reporterContact": {
+          "type": "string",
+          "description": "Nomor kontak / WhatsApp aktif pelapor",
+          "maxLength": 50
+        },
+        "servicesNeeded": {
+          "type": "object",
+          "description": "Daftar layanan terpadu yang dibutuhkan korban"
+        },
+        "attachments": {
+          "type": "array",
+          "description": "Daftar lampiran dokumen atau bukti pendukung"
+        },
+        "officerNotes": {
+          "type": "array",
+          "description": "Catatan resmi penanganan tim reaksi cepat dinas"
+        },
+        "messages": {
+          "type": "array",
+          "description": "Komunikasi terenkripsi antara korban/pelapor dan petugas dinas"
+        }
       },
-      "required": ["ticketCode", "createdAt", "victimName", "kecamatan", "desaKelurahan", "incidentDescription"]
+      "required": [
+        "ticketCode",
+        "createdAt",
+        "victimName",
+        "kecamatan",
+        "desaKelurahan",
+        "incidentDescription",
+        "status",
+        "urgency"
+      ]
     }
   },
   "firestore": {
