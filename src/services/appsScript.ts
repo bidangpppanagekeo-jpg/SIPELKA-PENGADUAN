@@ -358,11 +358,25 @@ function doGet(e) {
   }
 }
 
+// Helper: Kirim pesan balasan / notifikasi via Fonnte (menggunakan FONNTE_TOKEN di Script Properties)
+function sendFonnteWhatsApp(targetPhone, message) {
+  var props = PropertiesService.getScriptProperties();
+  var fonnteToken = props.getProperty("FONNTE_TOKEN");
+  if (!fonnteToken || !targetPhone || !message) return false;
+  UrlFetchApp.fetch("https://api.fonnte.com/send", {
+    method: "post",
+    headers: { Authorization: fonnteToken },
+    payload: { target: String(targetPhone), message: String(message), countryCode: "62" },
+    muteHttpExceptions: true
+  });
+  return true;
+}
+
 // Helper: Kirim Notifikasi WhatsApp Otomatis ke Petugas UPTD PPA (Server-Side Google Apps Script)
 // Isi Script Properties (Setelan Proyek > Properti Skrip):
-// - FONNTE_TOKEN (jika pakai Fonnte.com) ATAU
-// - CALLMEBOT_APIKEY (jika pakai CallMeBot gratis) ATAU
-// - OFFICER_EMAIL (opsional, untuk notifikasi email instan ke bidangpppanagekeo@gmail.com)
+// - FONNTE_TOKEN (untuk Notifikasi Otomatis + Chatbot WA 2-Arah via Fonnte.com)
+// - CALLMEBOT_APIKEY (alternatif gratis jika hanya notifikasi keluar)
+// - OFFICER_EMAIL (opsional, default: bidangpppanagekeo@gmail.com)
 function sendAutoWhatsAppToOfficer(waData) {
   if (!waData || !waData.message) return;
   var props = PropertiesService.getScriptProperties();
@@ -370,16 +384,8 @@ function sendAutoWhatsAppToOfficer(waData) {
   var message = waData.message;
 
   try {
-    // 1. Jalur Fonnte WhatsApp Gateway (Rekomendasi resmi untuk kirim otomatis tanpa klik)
-    var fonnteToken = props.getProperty("FONNTE_TOKEN");
-    if (fonnteToken) {
-      UrlFetchApp.fetch("https://api.fonnte.com/send", {
-        method: "post",
-        headers: { Authorization: fonnteToken },
-        payload: { target: targetPhone, message: message, countryCode: "62" },
-        muteHttpExceptions: true
-      });
-    }
+    // 1. Jalur Fonnte WhatsApp Gateway (Rekomendasi resmi untuk kirim otomatis & chatbot)
+    sendFonnteWhatsApp(targetPhone, message);
 
     // 2. Jalur CallMeBot WhatsApp API (Alternatif gratis)
     var callMeBotKey = props.getProperty("CALLMEBOT_APIKEY");
@@ -405,11 +411,157 @@ function sendAutoWhatsAppToOfficer(waData) {
   }
 }
 
-// 2. POST: Menyimpan, memperbarui, atau menghapus data pengaduan kasus
+// Helper: Cek status kasus berdasarkan No. Tiket di Spreadsheet (tanpa membocorkan identitas korban)
+function lookupTicketStatusInSheet(sheet, ticketCode) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return null;
+  var rows = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
+  var target = String(ticketCode || "").trim().toUpperCase();
+  for (var i = 0; i < rows.length; i++) {
+    var rowTicket = String(rows[i][0] || "").trim().toUpperCase();
+    if (rowTicket === target) {
+      return String(rows[i][4] || "Masuk").trim();
+    }
+  }
+  return null;
+}
+
+// Helper: Chatbot WhatsApp Otomatis 2-Arah (Webhook Fonnte)
+function handleIncomingWhatsAppChatbot(data, sheet) {
+  var sender = String(data.sender || "").trim();
+  var msg = String(data.message || "").trim();
+  var senderName = String(data.name || "Warga").trim();
+
+  // KEAMANAN KORBAN: Abaikan pesan grup (data.member terisi) dan broadcast status
+  if (!sender || !msg || (data.member && String(data.member).trim() !== "") || sender.indexOf("status@broadcast") !== -1) {
+    return { status: "ignored", reason: "group_or_empty" };
+  }
+
+  var upper = msg.toUpperCase();
+  var reply = "";
+
+  // 1. Lapor langsung via WA format LAPOR#NamaKorban#KecamatanDesa#Kronologi
+  if (upper.indexOf("LAPOR#") === 0) {
+    var parts = msg.split("#");
+    var victimName = (parts[1] || "").trim();
+    var location = (parts[2] || "").trim();
+    var chronology = parts.slice(3).join(" ").trim();
+
+    if (!victimName || !location || !chronology) {
+      reply = "Format *LAPOR#* belum lengkap.\\n\\nGunakan format:\\n*LAPOR#Nama Korban#Kecamatan/Desa#Kronologi Singkat*\\n\\nContoh:\\nLAPOR#Mawar (15 th)#Desa Danga, Kec. Aesesa#Mengalami kekerasan di rumah.";
+    } else {
+      var year = new Date().getFullYear();
+      var rand6 = String(Math.floor(100000 + Math.random() * 900000));
+      var ticketCode = "PPA-NGK-" + year + "-" + rand6;
+      var dateStr = Utilities.formatDate(new Date(), "Asia/Makassar", "yyyy-MM-dd HH:mm");
+
+      // Simpan ke Spreadsheet 25 kolom agar otomatis masuk ke Dasbor UPTD PPA
+      sheet.appendRow([
+        ticketCode, dateStr, "Sedang", "Kekerasan Fisik / KDRT", "masuk",
+        victimName, "Perempuan", "Dewasa", location,
+        location, location, dateStr, location, chronology,
+        "Ya", "Dalam Pendalaman", "-", "-", "-",
+        senderName + " (Via Chatbot WA)", "Pelapor Langsung", sender, "Terbatas",
+        "Penjangkauan & Konseling Awal", "Laporan masuk otomatis melalui Chatbot WhatsApp."
+      ]);
+
+      // Teruskan otomatis ke WhatsApp Petugas UPTD PPA (0822-6635-5313)
+      var officerMsg = "*PENGADUAN BARU VIA CHATBOT WA*\\n" +
+        "Tiket: " + ticketCode + "\\n" +
+        "WA Pelapor: " + sender + " (" + senderName + ")\\n" +
+        "Korban: " + victimName + "\\n" +
+        "Lokasi: " + location + "\\n" +
+        "Kronologi: " + chronology + "\\n\\n" +
+        "Data otomatis masuk ke Google Sheets & siap ditarik di Dasbor UPTD PPA.";
+      sendAutoWhatsAppToOfficer({ targetNumber: "6282266355313", message: officerMsg });
+
+      reply = "Terima kasih, laporan Anda telah *TERCATAT RESMI* di sistem SI-PELKA UPTD PPA Kab. Nagekeo.\\n\\n" +
+        "No. Tiket: *" + ticketCode + "*\\n" +
+        "Lokasi: " + location + "\\n\\n" +
+        "Petugas piket UPTD PPA (0822-6635-5313) telah menerima notifikasi otomatis dan akan segera menindaklanjuti.\\n\\n" +
+        "Ketik *STATUS " + ticketCode + "* kapan saja untuk memantau progres penanganan.";
+    }
+  }
+  // 2. Cek Status Tiket: STATUS PPA-NGK-YYYY-XXXXXX
+  else if (upper.indexOf("STATUS") === 0) {
+    var match = upper.match(/PPA-NGK-\\d{4}-\\d{4,8}/i);
+    if (!match) {
+      reply = "Untuk cek status laporan, kirim format:\\n*STATUS PPA-NGK-2026-123456*\\n\\nAtau ketik *MENU* untuk kembali.";
+    } else {
+      var foundTicket = match[0].toUpperCase();
+      var statusVal = lookupTicketStatusInSheet(sheet, foundTicket);
+      if (statusVal) {
+        reply = "*INFO STATUS PENGADUAN*\\nNo. Tiket: *" + foundTicket + "*\\nStatus Terkini: *" + statusVal.toUpperCase() + "*\\n\\nDemi kerahasiaan korban, rincian identitas tidak ditampilkan di chat otomatis.";
+      } else {
+        reply = "Kode tiket *" + foundTicket + "* belum ditemukan di sistem.\\nPastikan penulisan kode sudah benar atau ketik *MENU*.";
+      }
+    }
+  }
+  // 3. Menu Pilihan 1-4
+  else if (msg === "1" || upper === "LAPOR" || upper === "FORM" || upper === "FORMULIR") {
+    reply = "*CARA MELAPOR KE UPTD PPA NAGEKEO*\\n\\n" +
+      "1) *Lapor Langsung via WhatsApp ini:*\\n" +
+      "Kirim pesan dengan format:\\n*LAPOR#Nama Korban#Desa/Kecamatan#Kronologi Singkat*\\n\\n" +
+      "2) *Lapor Rahasia via Formulir Web SI-PELKA:*\\n" +
+      "Isi formulir lengkap (termasuk opsi Anonim & Rumah Aman) di portal web SI-PELKA Nagekeo.\\n\\nKetik *MENU* untuk kembali.";
+  } else if (msg === "2" || upper.indexOf("DARURAT") !== -1 || upper.indexOf("TOLONG") !== -1 || upper.indexOf("BAHAYA") !== -1) {
+    reply = "*KONTAK DARURAT 24 JAM — KAB. NAGEKEO*\\n\\n" +
+      "Jika dalam ancaman bahaya saat ini:\\n" +
+      "• Segera menjauh ke tempat aman (tetangga/kantor desa/polsek).\\n" +
+      "• *Hotline UPTD PPA*: *0822-6635-5313*\\n" +
+      "• *Polres Nagekeo / Unit PPA*: *110*\\n" +
+      "• *IGD RSUD Aeramo*: untuk medis & visum segera.\\n\\n" +
+      "Atau langsung ketik: *LAPOR#Nama Korban#Lokasi#Kondisi Darurat*";
+  } else if (msg === "3" || upper.indexOf("LAYANAN") !== -1 || upper.indexOf("GRATIS") !== -1) {
+    reply = "*LAYANAN GRATIS UPTD PPA DINAS PMDP3A NAGEKEO*\\n\\n" +
+      "Seluruh layanan *TIDAK DIPUNGUT BIAYA (GRATIS)*:\\n" +
+      "1. Pengaduan & Penjangkauan Kasus Cepat\\n" +
+      "2. Medis & Fasilitasi Visum et Repertum\\n" +
+      "3. Konseling Psikologis & Pemulihan Trauma\\n" +
+      "4. Advokasi Hukum (Polres & Pengadilan)\\n" +
+      "5. Rumah Aman (Safe House)\\n\\nKetik *MENU* untuk kembali.";
+  } else if (msg === "4" || upper.indexOf("ALAMAT") !== -1 || upper.indexOf("KANTOR") !== -1) {
+    reply = "*ALAMAT KANTOR UPTD PPA KAB. NAGEKEO*\\n\\n" +
+      "Dinas PMDP3A / UPTD PPA\\nJl. Soekarno-Hatta, Kompleks Civic Center, Mbay, NTT\\n" +
+      "• Jam Layanan: Senin–Jumat, 08.00–16.00 WITA\\n" +
+      "• Hotline 24 Jam: *0822-6635-5313*\\n" +
+      "• Email: bidangpppanagekeo@gmail.com\\n\\nKetik *MENU* untuk kembali.";
+  } else {
+    reply = "Halo *" + senderName + "*, selamat datang di *Layanan Otomatis SI-PELKA UPTD PPA Kab. Nagekeo*.\\n\\n" +
+      "Balas dengan *ANGKA* atau *PERINTAH*:\\n" +
+      "• *1* — Cara Lapor Pengaduan\\n" +
+      "• *2* — Bantuan Darurat 24 Jam\\n" +
+      "• *3* — Daftar Layanan Gratis UPTD PPA\\n" +
+      "• *4* — Alamat Kantor & Jam Layanan\\n" +
+      "• *STATUS <KodeTiket>* — Cek status pengaduan\\n" +
+      "• *LAPOR#NamaKorban#Lokasi#Kronologi* — Lapor langsung via WA";
+  }
+
+  sendFonnteWhatsApp(sender, reply);
+  return { status: "success", chatbotRepliedTo: sender };
+}
+
+// 2. POST: Menyimpan, menghapus, sinkronisasi data kasus, atau membalas Chatbot WA 2-Arah (Fonnte)
 function doPost(e) {
   try {
-    var data = JSON.parse(e.postData.contents);
+    var data = {};
+    if (e && e.postData && e.postData.contents) {
+      try {
+        data = JSON.parse(e.postData.contents);
+      } catch (parseErr) {
+        data = (e && e.parameter) ? e.parameter : {};
+      }
+    } else if (e && e.parameter) {
+      data = e.parameter;
+    }
     var sheet = getOrCreateSheet();
+
+    // 0. Webhook Chatbot WhatsApp Otomatis dari Fonnte (ada sender & message, tanpa action dasbor)
+    if (!data.action && data.sender && data.message) {
+      var botResult = handleIncomingWhatsAppChatbot(data, sheet);
+      return ContentService.createTextOutput(JSON.stringify(botResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
 
     // A. Tambah aduan baru dari formulir warga + kirim notifikasi otomatis ke WA petugas
     if (data.action === "ADD_COMPLAINT" && data.report) {

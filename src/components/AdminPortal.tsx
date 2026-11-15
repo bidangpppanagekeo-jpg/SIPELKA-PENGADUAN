@@ -4,7 +4,7 @@ import {
   Download, Printer, FileText, Send, User, MapPin, Calendar, 
   MessageSquare, ChevronRight, ChevronDown, Menu, X, Clock, Eye, EyeOff, ExternalLink, RefreshCw,
   Table2, Check, AlertCircle, LogOut, Copy, LayoutDashboard, Users, CheckSquare, PhoneCall, Trash2,
-  Activity, ArrowLeft
+  Activity, ArrowLeft, Bot
 } from 'lucide-react';
 import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
 import { CATEGORY_LABELS } from '../data/mockData';
@@ -38,6 +38,10 @@ import {
   APPS_SCRIPT_TEMPLATE_CODE,
   DEFAULT_APPS_SCRIPT_PROJECT_ID 
 } from '../services/appsScript';
+import {
+  simulateWhatsAppChatbotReply,
+  ChatbotSimulationResult
+} from '../services/whatsappChatbot';
 
 interface AdminPortalProps {
   reports: ReportItem[];
@@ -240,7 +244,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [isSyncingAppsScript, setIsSyncingAppsScript] = useState<boolean>(false);
   const [appsScriptMsg, setAppsScriptMsg] = useState<string>('');
   const [showAppsScriptModal, setShowAppsScriptModal] = useState<boolean>(false);
+  const [appsScriptModalTab, setAppsScriptModalTab] = useState<'scripts' | 'chatbot'>('scripts');
   const [copiedScript, setCopiedScript] = useState<boolean>(false);
+  const [copiedWebhookUrl, setCopiedWebhookUrl] = useState<boolean>(false);
+  const [chatbotTestInput, setChatbotTestInput] = useState<string>('MENU');
+  const [chatbotSimResult, setChatbotSimResult] = useState<ChatbotSimulationResult>(() =>
+    simulateWhatsAppChatbotReply('MENU', 'Warga Nagekeo', reports)
+  );
 
   const handleSyncAppsScript = async () => {
     setIsSyncingAppsScript(true);
@@ -303,6 +313,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     navigator.clipboard.writeText(APPS_SCRIPT_TEMPLATE_CODE);
     setCopiedScript(true);
     setTimeout(() => setCopiedScript(false), 3000);
+  };
+
+  const handleCopyWebhookUrl = () => {
+    if (!appsScriptUrl.trim()) return;
+    navigator.clipboard.writeText(appsScriptUrl.trim());
+    setCopiedWebhookUrl(true);
+    setTimeout(() => setCopiedWebhookUrl(false), 3000);
+  };
+
+  const handleRunChatbotSimulation = (messageOverride?: string) => {
+    const query = typeof messageOverride === 'string' ? messageOverride : chatbotTestInput;
+    if (typeof messageOverride === 'string') {
+      setChatbotTestInput(messageOverride);
+    }
+    setChatbotSimResult(simulateWhatsAppChatbotReply(query, 'Warga Nagekeo', reports));
   };
 
   // Listen to Google Auth state & enforce bidangpppanagekeo@gmail.com
@@ -1544,6 +1569,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 type="button"
                 onClick={() => {
                   setIsMainMenuOpen(false);
+                  setAppsScriptModalTab('chatbot');
+                  setShowAppsScriptModal(true);
+                }}
+                className="w-full py-2.5 px-3 bg-emerald-900/60 hover:bg-emerald-800/80 text-emerald-100 font-semibold rounded-xl border border-emerald-700/70 flex items-center justify-between cursor-pointer transition-colors"
+                title="Atur Webhook & Simulasikan Chatbot WhatsApp Otomatis 2-Arah"
+              >
+                <div className="flex items-center gap-2">
+                  <Bot className="w-3.5 h-3.5 text-emerald-300" />
+                  <span>Chatbot WA Otomatis (2-Arah)</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-emerald-300" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMainMenuOpen(false);
+                  setAppsScriptModalTab('scripts');
                   setShowAppsScriptModal(true);
                 }}
                 className="w-full py-2.5 px-3 bg-stone-800 hover:bg-stone-700 text-stone-200 font-semibold rounded-xl border border-stone-700 flex items-center justify-between cursor-pointer transition-colors"
@@ -1584,14 +1627,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="flex items-center justify-between border-b border-stone-200 pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-teal-800 text-white flex items-center justify-center shrink-0">
-                  <Table2 className="w-4 h-4" />
+                  {appsScriptModalTab === 'chatbot' ? <Bot className="w-4 h-4" /> : <Table2 className="w-4 h-4" />}
                 </div>
                 <div>
                   <h3 className="font-bold text-sm text-stone-900">
-                    Integrasi Google Apps Script Web App (2-Arah)
+                    {appsScriptModalTab === 'chatbot'
+                      ? 'Chatbot WhatsApp Otomatis (2-Arah)'
+                      : 'Integrasi Google Apps Script Web App (2-Arah)'}
                   </h3>
                   <p className="text-[11px] text-stone-500">
-                    Bekerja tanpa kendala OAuth atau Origin Mismatch di Cloudflare & Domain Kustom
+                    {appsScriptModalTab === 'chatbot'
+                      ? 'Balas pesan warga otomatis, cek status tiket & terima aduan via WA (0822-6635-5313)'
+                      : 'Bekerja tanpa kendala OAuth atau Origin Mismatch di Cloudflare & Domain Kustom'}
                   </p>
                 </div>
               </div>
@@ -1604,106 +1651,270 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </button>
             </div>
 
-            {/* URL Web App Settings */}
-            <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200 space-y-2">
-              <label className="block font-bold text-stone-800">
-                Web App Exec URL (Webhook Google):
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={appsScriptUrl}
-                  onChange={(e) => handleSaveAppsScriptUrl(e.target.value)}
-                  placeholder="https://script.google.com/macros/s/.../exec"
-                  className="flex-1 border border-stone-300 rounded-lg p-2.5 bg-white font-mono text-[11px] focus:outline-none focus:border-teal-700"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleSaveAppsScriptUrl(appsScriptUrl);
-                    setAppsScriptMsg('URL Web App berhasil disimpan!');
-                  }}
-                  className="px-3.5 py-2 bg-teal-800 text-white font-semibold rounded-lg hover:bg-teal-900 cursor-pointer shadow-xs shrink-0"
-                >
-                  Simpan URL
-                </button>
-              </div>
-              <p className="text-[10px] text-stone-500">
-                URL ini dihasilkan dari tombol <strong>Deploy &gt; New deployment &gt; Web app</strong> di Google Apps Script Anda.
-              </p>
+            {/* Tab Switcher */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-stone-100 rounded-xl border border-stone-200">
+              <button
+                type="button"
+                onClick={() => setAppsScriptModalTab('scripts')}
+                className={`py-2 px-3 rounded-lg font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+                  appsScriptModalTab === 'scripts'
+                    ? 'bg-white text-teal-900 shadow-xs border border-stone-200'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <Table2 className="w-3.5 h-3.5" />
+                <span>Apps Script & Sheets</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAppsScriptModalTab('chatbot')}
+                className={`py-2 px-3 rounded-lg font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+                  appsScriptModalTab === 'chatbot'
+                    ? 'bg-white text-emerald-900 shadow-xs border border-stone-200'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <Bot className="w-3.5 h-3.5" />
+                <span>Chatbot WA Otomatis</span>
+              </button>
             </div>
 
-            {/* Quick Actions */}
-            <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-teal-50 border border-teal-200 rounded-xl">
-              <div className="text-teal-950 font-medium">
-                Uji Sinkronisasi Sekarang:
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleSyncAppsScript}
-                  disabled={isSyncingAppsScript}
-                  className="px-3 py-1.5 bg-teal-800 hover:bg-teal-900 text-white font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingAppsScript ? 'animate-spin' : ''}`} />
-                  <span>{isSyncingAppsScript ? 'Mengirim...' : 'Kirim Data ke Sheets'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePullFromAppsScript}
-                  disabled={isSyncingAppsScript}
-                  className="px-3 py-1.5 bg-white hover:bg-stone-50 text-teal-900 font-semibold rounded-lg border border-teal-300 flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Tarik Data dari Sheets</span>
-                </button>
-              </div>
-            </div>
+            {appsScriptModalTab === 'scripts' ? (
+              <>
+                {/* URL Web App Settings */}
+                <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200 space-y-2">
+                  <label className="block font-bold text-stone-800">
+                    Web App Exec URL (Webhook Google):
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={appsScriptUrl}
+                      onChange={(e) => handleSaveAppsScriptUrl(e.target.value)}
+                      placeholder="https://script.google.com/macros/s/.../exec"
+                      className="flex-1 border border-stone-300 rounded-lg p-2.5 bg-white font-mono text-[11px] focus:outline-none focus:border-teal-700"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleSaveAppsScriptUrl(appsScriptUrl);
+                        setAppsScriptMsg('URL Web App berhasil disimpan!');
+                      }}
+                      className="px-3.5 py-2 bg-teal-800 text-white font-semibold rounded-lg hover:bg-teal-900 cursor-pointer shadow-xs shrink-0"
+                    >
+                      Simpan URL
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-stone-500">
+                    URL ini dihasilkan dari tombol <strong>Deploy &gt; New deployment &gt; Web app</strong> di Google Apps Script Anda (berfungsi sekaligus sebagai Webhook Chatbot WA).
+                  </p>
+                </div>
 
-            {appsScriptMsg && (
-              <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-medium">
-                {appsScriptMsg}
+                {/* Quick Actions */}
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-teal-50 border border-teal-200 rounded-xl">
+                  <div className="text-teal-950 font-medium">
+                    Uji Sinkronisasi Sekarang:
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSyncAppsScript}
+                      disabled={isSyncingAppsScript}
+                      className="px-3 py-1.5 bg-teal-800 hover:bg-teal-900 text-white font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isSyncingAppsScript ? 'animate-spin' : ''}`} />
+                      <span>{isSyncingAppsScript ? 'Mengirim...' : 'Kirim Data ke Sheets'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePullFromAppsScript}
+                      disabled={isSyncingAppsScript}
+                      className="px-3 py-1.5 bg-white hover:bg-stone-50 text-teal-900 font-semibold rounded-lg border border-teal-300 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Tarik Data dari Sheets</span>
+                    </button>
+                  </div>
+                </div>
+
+                {appsScriptMsg && (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-medium">
+                    {appsScriptMsg}
+                  </div>
+                )}
+
+                {/* Step by step guide */}
+                <div className="space-y-2 border-t border-stone-200 pt-3">
+                  <div className="font-bold text-stone-900 text-xs">
+                    Panduan Pemasangan Kode, Notifikasi & Chatbot WA ke 0822-6635-5313:
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-stone-600 leading-relaxed bg-stone-50 p-3 rounded-xl border border-stone-200">
+                    <li>Buka Spreadsheet rekapan pengaduan Anda di Google Drive.</li>
+                    <li>Klik menu <strong>Ekstensi (Extensions)</strong> &gt; <strong>Apps Script</strong>.</li>
+                    <li>Hapus kode bawaan kosong, lalu tempel (Paste) seluruh kode di bawah ini dan simpan.</li>
+                    <li>
+                      Untuk mengaktifkan <strong>Notifikasi Otomatis &amp; Chatbot WA 2-Arah (0822-6635-5313)</strong>: buka <strong>Setelan Proyek &gt; Properti Skrip</strong> di Apps Script, lalu tambahkan:
+                      <span className="block pl-4 pt-1 font-mono text-[10px] text-teal-900">
+                        • FONNTE_TOKEN (wajib untuk Chatbot WA 2-Arah &amp; kirim otomatis via Fonnte.com)<br />
+                        • CALLMEBOT_APIKEY (alternatif gratis khusus notifikasi satu arah ke petugas)
+                      </span>
+                    </li>
+                    <li>Klik tombol <strong>Deploy</strong> (kanan atas) &gt; <strong>New deployment</strong> &gt; pilih <strong>Web app</strong> &gt; ubah <em>Who has access</em> menjadi <strong>Anyone (Siapa saja)</strong> &gt; <strong>Deploy</strong>.</li>
+                    <li>Salin <strong>Web app URL</strong> (yang berakhiran <code className="font-mono">/exec</code>), tempel ke kolom URL di atas dan tambahkan sebagai build variable <code className="font-mono">VITE_APPS_SCRIPT_WEBAPP_URL</code> di Cloudflare.</li>
+                  </ol>
+                </div>
+
+                {/* Code Box with Copy */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-stone-800">Kode Google Apps Script (Sudah Termasuk Chatbot WA):</span>
+                    <button
+                      type="button"
+                      onClick={handleCopyScriptCode}
+                      className="px-2.5 py-1 text-[11px] font-semibold text-teal-800 bg-teal-50 border border-teal-300 hover:bg-teal-100 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      {copiedScript ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedScript ? 'Kode Berhasil Disalin!' : 'Salin Semua Kode'}</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 bg-stone-900 text-teal-300 font-mono text-[10px] rounded-xl overflow-x-auto max-h-48 leading-relaxed">
+                    {APPS_SCRIPT_TEMPLATE_CODE}
+                  </pre>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                {/* Webhook URL & Privacy Status */}
+                <div className={`p-3.5 rounded-xl border space-y-2 ${isValidAppsScriptWebAppUrl(appsScriptUrl) ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-stone-900">Webhook URL untuk Fonnte:</span>
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${isValidAppsScriptWebAppUrl(appsScriptUrl) ? 'bg-emerald-700 text-white' : 'bg-amber-700 text-white'}`}>
+                      {isValidAppsScriptWebAppUrl(appsScriptUrl) ? 'URL /exec Siap Dipakai' : 'URL /exec Belum Diatur'}
+                    </span>
+                  </div>
+                  {isValidAppsScriptWebAppUrl(appsScriptUrl) ? (
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 p-2 bg-white border border-emerald-200 rounded-lg font-mono text-[10px] text-stone-700 truncate">
+                        {appsScriptUrl}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={handleCopyWebhookUrl}
+                        className="px-3 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold rounded-lg flex items-center gap-1 cursor-pointer shrink-0"
+                      >
+                        {copiedWebhookUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedWebhookUrl ? 'Tersalin' : 'Salin Webhook'}</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-amber-900">
+                      Deploy terlebih dahulu kode di tab <strong>Apps Script &amp; Sheets</strong> lalu tempel URL berakhiran <code className="font-mono">/exec</code> agar bisa dipasang di Webhook Fonnte.
+                    </p>
+                  )}
+                  <p className="text-[10px] text-stone-600 leading-relaxed">
+                    <strong>Perlindungan Privasi Korban:</strong> Chatbot otomatis mengabaikan pesan grup WhatsApp, menyimpan <code className="font-mono">FONNTE_TOKEN</code> hanya di <em>Script Properties</em> server Google, dan tidak pernah menampilkan nama korban pada fitur <code className="font-mono">STATUS</code>.
+                  </p>
+                </div>
+
+                {/* 3 Langkah Aktivasi Chatbot di Fonnte */}
+                <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200 space-y-2">
+                  <div className="font-bold text-stone-900">Cara Menautkan Chatbot Otomatis ke WA (0822-6635-5313):</div>
+                  <ol className="list-decimal list-inside space-y-1 text-[11px] text-stone-600 leading-relaxed">
+                    <li>Masuk ke dasbor <strong>Fonnte.com</strong> &rarr; tautkan nomor WA resmi UPTD PPA (<span className="font-mono font-semibold text-stone-800">0822-6635-5313</span>) via scan QR Device.</li>
+                    <li>Buka menu <strong>Device &rarr; Edit</strong>, tempel <strong>Web App Exec URL</strong> di atas ke kolom <strong>Webhook URL</strong>, aktifkan <em>Webhook Connect</em>, lalu simpan.</li>
+                    <li>Pastikan di Google Apps Script &rarr; <strong>Setelan Proyek &rarr; Properti Skrip</strong> sudah terisi <code className="font-mono font-semibold text-teal-900">FONNTE_TOKEN</code> dan kode terbaru dari tab sebelah sudah di-<strong>Deploy ulang</strong>.</li>
+                  </ol>
+                </div>
+
+                {/* Interactive Chatbot Simulator */}
+                <div className="border border-stone-200 rounded-xl overflow-hidden bg-white">
+                  <div className="bg-stone-900 text-white px-3.5 py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Bot className="w-4 h-4 text-emerald-400" />
+                      <span className="font-bold text-xs">Simulasi Balasan Chatbot WA Otomatis</span>
+                    </div>
+                    <span className="text-[10px] text-stone-400">Preview Respons Warga</span>
+                  </div>
+
+                  <div className="p-3.5 space-y-3 bg-stone-50">
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { label: 'MENU', cmd: 'MENU' },
+                        { label: '1 (Cara Lapor)', cmd: '1' },
+                        { label: '2 (Darurat)', cmd: '2' },
+                        { label: '3 (Layanan Gratis)', cmd: '3' },
+                        { label: '4 (Alamat Kantor)', cmd: '4' },
+                        {
+                          label: 'Cek STATUS',
+                          cmd: `STATUS ${reports[0]?.ticketCode || 'PPA-NGK-2026-896338'}`
+                        },
+                        {
+                          label: 'Uji LAPOR#',
+                          cmd: 'LAPOR#Mawar (15 th)#Desa Danga, Kec. Aesesa#Mengalami kekerasan fisik di rumah dan butuh pendampingan.'
+                        }
+                      ].map((chip) => (
+                        <button
+                          key={chip.label}
+                          type="button"
+                          onClick={() => handleRunChatbotSimulation(chip.cmd)}
+                          className="px-2.5 py-1 bg-white hover:bg-teal-50 text-teal-900 border border-stone-300 hover:border-teal-400 rounded-lg text-[10px] font-semibold cursor-pointer transition-colors"
+                        >
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={chatbotTestInput}
+                        onChange={(e) => setChatbotTestInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleRunChatbotSimulation();
+                          }
+                        }}
+                        placeholder="Ketik pesan warga (misal: MENU, 2, STATUS ..., LAPOR#...)"
+                        className="flex-1 border border-stone-300 rounded-lg px-3 py-2 bg-white text-xs focus:outline-none focus:border-teal-700"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRunChatbotSimulation()}
+                        className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shrink-0"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Uji Balas</span>
+                      </button>
+                    </div>
+
+                    {/* Preview Bubble */}
+                    <div className="space-y-2 pt-1">
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-[11px] text-stone-800 whitespace-pre-wrap leading-relaxed shadow-2xs">
+                        <div className="text-[10px] font-bold text-emerald-800 mb-1 flex items-center justify-between">
+                          <span>Balasan Otomatis Bot SI-PELKA ke Warga:</span>
+                          {chatbotSimResult.generatedTicketCode && (
+                            <span className="font-mono bg-emerald-200/70 px-1.5 py-0.5 rounded text-emerald-950">
+                              {chatbotSimResult.generatedTicketCode}
+                            </span>
+                          )}
+                        </div>
+                        {chatbotSimResult.replyText}
+                      </div>
+
+                      {chatbotSimResult.officerAlertPreview && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-950 whitespace-pre-wrap leading-relaxed">
+                          <div className="text-[10px] font-bold text-amber-800 mb-1">
+                            Notifikasi Diteruskan Otomatis ke WA Petugas (0822-6635-5313):
+                          </div>
+                          {chatbotSimResult.officerAlertPreview}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
-
-            {/* Step by step guide */}
-            <div className="space-y-2 border-t border-stone-200 pt-3">
-              <div className="font-bold text-stone-900 text-xs">
-                Panduan Pemasangan Kode & Notifikasi WhatsApp Otomatis ke 0822-6635-5313:
-              </div>
-              <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-stone-600 leading-relaxed bg-stone-50 p-3 rounded-xl border border-stone-200">
-                <li>Buka Spreadsheet rekapan pengaduan Anda di Google Drive.</li>
-                <li>Klik menu <strong>Ekstensi (Extensions)</strong> &gt; <strong>Apps Script</strong>.</li>
-                <li>Hapus kode bawaan kosong, lalu tempel (Paste) seluruh kode di bawah ini dan simpan.</li>
-                <li>
-                  Untuk mengaktifkan <strong>kirim pesan otomatis ke WA Petugas (0822-6635-5313)</strong> tanpa klik pelapor: buka <strong>Setelan Proyek &gt; Properti Skrip</strong> di Apps Script, lalu tambahkan salah satu properti:
-                  <span className="block pl-4 pt-1 font-mono text-[10px] text-teal-900">
-                    • CALLMEBOT_APIKEY (gratis: daftar dari WA petugas ke bot CallMeBot)<br />
-                    • FONNTE_TOKEN (jika memakai gateway resmi Fonnte.com)
-                  </span>
-                </li>
-                <li>Klik tombol <strong>Deploy</strong> (kanan atas) &gt; <strong>New deployment</strong> &gt; pilih <strong>Web app</strong> &gt; ubah <em>Who has access</em> menjadi <strong>Anyone (Siapa saja)</strong> &gt; <strong>Deploy</strong>.</li>
-                <li>Salin <strong>Web app URL</strong> (yang berakhiran <code className="font-mono">/exec</code>), tempel ke kolom URL di atas dan tambahkan sebagai build variable <code className="font-mono">VITE_APPS_SCRIPT_WEBAPP_URL</code> di Cloudflare agar aktif untuk semua HP masyarakat.</li>
-              </ol>
-            </div>
-
-            {/* Code Box with Copy */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-stone-800">Kode Google Apps Script:</span>
-                <button
-                  type="button"
-                  onClick={handleCopyScriptCode}
-                  className="px-2.5 py-1 text-[11px] font-semibold text-teal-800 bg-teal-50 border border-teal-300 hover:bg-teal-100 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  {copiedScript ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedScript ? 'Kode Berhasil Disalin!' : 'Salin Semua Kode'}</span>
-                </button>
-              </div>
-              <pre className="p-3 bg-stone-900 text-teal-300 font-mono text-[10px] rounded-xl overflow-x-auto max-h-48 leading-relaxed">
-                {APPS_SCRIPT_TEMPLATE_CODE}
-              </pre>
-            </div>
 
             <div className="flex justify-end pt-2 border-t border-stone-200">
               <button
