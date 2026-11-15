@@ -6,10 +6,24 @@ export const DEFAULT_APPS_SCRIPT_PROJECT_ID = '1bkzLtf_KGyGHAd2_s98LpnWXzzKxU27e
 export const DEFAULT_APPS_SCRIPT_WEBAPP_URL = `https://script.google.com/macros/s/${DEFAULT_APPS_SCRIPT_PROJECT_ID}/exec`;
 export const APPS_SCRIPT_STORAGE_KEY = 'sipelka_nagekeo_apps_script_url';
 
+export const isValidAppsScriptWebAppUrl = (url?: string | null): boolean => {
+  const clean = (url || '').trim();
+  return Boolean(
+    clean &&
+    clean.startsWith('https://script.google.com/macros/s/') &&
+    clean.endsWith('/exec') &&
+    !clean.includes(DEFAULT_APPS_SCRIPT_PROJECT_ID)
+  );
+};
+
 /**
- * Get configured Google Apps Script Web App URL
+ * Get configured Google Apps Script Web App URL (env var first for all public devices, then localStorage)
  */
 export const getSavedAppsScriptUrl = (): string => {
+  const envUrl = (import.meta.env.VITE_APPS_SCRIPT_WEBAPP_URL || '').trim();
+  if (isValidAppsScriptWebAppUrl(envUrl)) {
+    return envUrl;
+  }
   try {
     const saved = localStorage.getItem(APPS_SCRIPT_STORAGE_KEY);
     if (saved && saved.trim()) return saved.trim();
@@ -38,7 +52,13 @@ export const sendReportToAppsScript = async (
   webAppUrl?: string,
   whatsappNotification?: { targetNumber: string; message: string }
 ): Promise<{ success: boolean; message: string }> => {
-  const targetUrl = webAppUrl || getSavedAppsScriptUrl();
+  const targetUrl = (webAppUrl || getSavedAppsScriptUrl()).trim();
+  if (!isValidAppsScriptWebAppUrl(targetUrl)) {
+    return {
+      success: false,
+      message: 'Web App URL (/exec) Google Apps Script belum dipasang.'
+    };
+  }
   try {
     const payload = {
       action: 'ADD_COMPLAINT',

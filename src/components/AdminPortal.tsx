@@ -34,6 +34,7 @@ import {
   syncAllToAppsScript, 
   fetchComplaintsFromAppsScript,
   deleteFromAppsScript,
+  isValidAppsScriptWebAppUrl,
   APPS_SCRIPT_TEMPLATE_CODE,
   DEFAULT_APPS_SCRIPT_PROJECT_ID 
 } from '../services/appsScript';
@@ -106,6 +107,40 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // Selected case for detailed full-width review (null = list view)
   const [selectedCase, setSelectedCase] = useState<ReportItem | null>(null);
   const [verificationSuccessNotice, setVerificationSuccessNotice] = useState<string>('');
+  const [incomingCaseAlert, setIncomingCaseAlert] = useState<ReportItem | null>(null);
+  const seenTicketsRef = useRef<Set<string> | null>(null);
+
+  useEffect(() => {
+    if (!seenTicketsRef.current) {
+      seenTicketsRef.current = new Set(reports.map((r) => r.ticketCode));
+      return;
+    }
+    const newlyArrived = reports.find(
+      (r) => r.status === 'masuk' && !seenTicketsRef.current!.has(r.ticketCode)
+    );
+    for (const r of reports) {
+      seenTicketsRef.current.add(r.ticketCode);
+    }
+    if (newlyArrived && isAuthenticated) {
+      setIncomingCaseAlert(newlyArrived);
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, ctx.currentTime);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.35);
+        }
+      } catch {}
+    }
+  }, [reports, isAuthenticated]);
 
   useEffect(() => {
     if (selectedCase) {
@@ -238,10 +273,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  // Auto-poll Google Apps Script Web App jika URL kustom sudah dipasang dan Cloud Firestore belum tersambung
+  // Auto-poll Google Apps Script Web App jika URL /exec valid sudah dipasang dan Cloud Firestore belum tersambung
   useEffect(() => {
     if (!isAuthenticated || isCloudConnected) return;
-    if (!appsScriptUrl || appsScriptUrl.includes(DEFAULT_APPS_SCRIPT_PROJECT_ID)) return;
+    if (!isValidAppsScriptWebAppUrl(appsScriptUrl)) return;
 
     let cancelled = false;
     const pullOnce = async () => {
@@ -860,7 +895,39 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
           {/* MAIN CONTENT AREA (9 cols: Filters + Single Screen Content) */}
           <div className="lg:col-span-9 flex flex-col overflow-hidden bg-white">
-            {/* Banner Sinkronisasi Cloud Dinas jika masuk lewat PIN lokal */}
+            {incomingCaseAlert && (
+              <div className="px-4 py-2.5 bg-teal-900 text-white border-b border-teal-700 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                  <span>
+                    <strong>Pengaduan Baru Masuk:</strong>{' '}
+                    <span className="font-mono">{incomingCaseAlert.ticketCode}</span> · Korban: <strong>{incomingCaseAlert.victimName}</strong> (Desa {incomingCaseAlert.desaKelurahan})
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSidebarTab('masuk');
+                      setSelectedCase(incomingCaseAlert);
+                      setIncomingCaseAlert(null);
+                    }}
+                    className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold rounded-lg text-[11px] cursor-pointer"
+                  >
+                    Buka Sekarang
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIncomingCaseAlert(null)}
+                    className="text-teal-200 hover:text-white p-0.5 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Banner Sinkronisasi Cloud Dinas jika masuk lewat kredensial lokal */}
             {!isCloudConnected && (
               <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-200 flex flex-wrap items-center justify-between gap-3 text-xs shrink-0">
                 <div className="flex items-start sm:items-center gap-2 text-amber-950">
@@ -1602,15 +1669,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             {/* Step by step guide */}
             <div className="space-y-2 border-t border-stone-200 pt-3">
               <div className="font-bold text-stone-900 text-xs">
-                Panduan Pemasangan Kode di Google Spreadsheet (Sekali Pasang):
+                Panduan Pemasangan Kode & Notifikasi WhatsApp Otomatis ke 0822-6635-5313:
               </div>
               <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-stone-600 leading-relaxed bg-stone-50 p-3 rounded-xl border border-stone-200">
                 <li>Buka Spreadsheet rekapan pengaduan Anda di Google Drive.</li>
                 <li>Klik menu <strong>Ekstensi (Extensions)</strong> &gt; <strong>Apps Script</strong>.</li>
-                <li>Hapus kode bawaan kosong, lalu tempel (Paste) seluruh kode di bawah ini.</li>
-                <li>Klik tombol <strong>Deploy</strong> (kanan atas) &gt; <strong>New deployment</strong>.</li>
-                <li>Pilih jenis <strong>Web app</strong>, ubah <em>Who has access</em> menjadi <strong>Anyone (Siapa saja)</strong>, lalu klik <strong>Deploy</strong>.</li>
-                <li>Salin <strong>Web app URL</strong> yang muncul dan tempelkan ke kolom URL di atas.</li>
+                <li>Hapus kode bawaan kosong, lalu tempel (Paste) seluruh kode di bawah ini dan simpan.</li>
+                <li>
+                  Untuk mengaktifkan <strong>kirim pesan otomatis ke WA Petugas (0822-6635-5313)</strong> tanpa klik pelapor: buka <strong>Setelan Proyek &gt; Properti Skrip</strong> di Apps Script, lalu tambahkan salah satu properti:
+                  <span className="block pl-4 pt-1 font-mono text-[10px] text-teal-900">
+                    • CALLMEBOT_APIKEY (gratis: daftar dari WA petugas ke bot CallMeBot)<br />
+                    • FONNTE_TOKEN (jika memakai gateway resmi Fonnte.com)
+                  </span>
+                </li>
+                <li>Klik tombol <strong>Deploy</strong> (kanan atas) &gt; <strong>New deployment</strong> &gt; pilih <strong>Web app</strong> &gt; ubah <em>Who has access</em> menjadi <strong>Anyone (Siapa saja)</strong> &gt; <strong>Deploy</strong>.</li>
+                <li>Salin <strong>Web app URL</strong> (yang berakhiran <code className="font-mono">/exec</code>), tempel ke kolom URL di atas dan tambahkan sebagai build variable <code className="font-mono">VITE_APPS_SCRIPT_WEBAPP_URL</code> di Cloudflare agar aktif untuk semua HP masyarakat.</li>
               </ol>
             </div>
 

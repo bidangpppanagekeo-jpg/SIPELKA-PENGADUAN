@@ -200,7 +200,7 @@ export default function App() {
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string>('');
-  const [waAutoStatus, setWaAutoStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [waAutoStatus, setWaAutoStatus] = useState<'idle' | 'sending' | 'sent' | 'not_configured' | 'error'>('idle');
 
   // Quick exit handler with privacy cache wiper
   const handleQuickExit = () => {
@@ -394,7 +394,13 @@ export default function App() {
       (async () => {
         try {
           const waResult = await dispatchAutoWhatsAppNotification(newReport);
-          setWaAutoStatus(waResult.dispatched ? 'sent' : 'error');
+          if (waResult.dispatched) {
+            setWaAutoStatus('sent');
+          } else if (!waResult.configured) {
+            setWaAutoStatus('not_configured');
+          } else {
+            setWaAutoStatus('error');
+          }
           const token = await getAccessToken();
           const activeSheet = getSavedSpreadsheetInfo();
           if (token && activeSheet?.id) {
@@ -1169,24 +1175,24 @@ export default function App() {
 
                 {/* Status Pengiriman Pesan Otomatis ke WhatsApp Petugas UPTD PPA */}
                 <div className={`p-3.5 rounded-xl border text-left text-xs space-y-1 ${
-                  waAutoStatus === 'error'
-                    ? 'bg-amber-50 border-amber-200 text-amber-900'
-                    : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  waAutoStatus === 'sent'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    : 'bg-teal-50 border-teal-200 text-teal-950'
                 }`}>
                   <div className="flex items-center gap-2 font-bold">
                     <MessageCircle className={`w-4 h-4 shrink-0 ${
-                      waAutoStatus === 'sending' ? 'animate-pulse text-emerald-700' : waAutoStatus === 'error' ? 'text-amber-700' : 'text-emerald-700'
+                      waAutoStatus === 'sending' ? 'animate-pulse text-teal-700' : waAutoStatus === 'sent' ? 'text-emerald-700' : 'text-teal-800'
                     }`} />
                     <span>
                       {waAutoStatus === 'sending'
-                        ? `Mengirim pesan otomatis ke WhatsApp Petugas (${OFFICER_WHATSAPP_DISPLAY})...`
-                        : waAutoStatus === 'error'
-                          ? 'Pengaduan tercatat di sistem dinas (relay WhatsApp sedang menunggu sinkronisasi)'
-                          : `Pesan pengaduan diteruskan otomatis ke WhatsApp Petugas UPTD PPA (${OFFICER_WHATSAPP_DISPLAY})`}
+                        ? `Meneruskan notifikasi pengaduan otomatis ke sistem petugas (${OFFICER_WHATSAPP_DISPLAY})...`
+                        : waAutoStatus === 'sent'
+                          ? `Pesan pengaduan diteruskan otomatis ke relay WhatsApp Petugas UPTD PPA (${OFFICER_WHATSAPP_DISPLAY})`
+                          : 'Pengaduan Anda tercatat resmi di Server Dinas UPTD PPA Kab. Nagekeo'}
                     </span>
                   </div>
                   <p className="text-[11px] opacity-90 pl-6 leading-relaxed">
-                    Anda tidak perlu mengirim konfirmasi cepat secara manual. Tim UPTD PPA akan segera menindaklanjuti berkas ini. Untuk panggilan darurat langsung, hubungi Hotline 24 Jam di kanan atas.
+                    Anda tidak perlu mengirim konfirmasi cepat secara manual. Tim UPTD PPA dapat langsung memeriksa berkas ini di Dasbor Dinas. Untuk panggilan darurat langsung, hubungi Hotline 24 Jam ({OFFICER_WHATSAPP_DISPLAY}) di kanan atas.
                   </p>
                 </div>
 

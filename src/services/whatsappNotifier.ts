@@ -1,9 +1,22 @@
 import { ReportItem } from '../types';
 import { CATEGORY_LABELS } from '../data/mockData';
-import { sendReportToAppsScript } from './appsScript';
+import {
+  getSavedAppsScriptUrl,
+  isValidAppsScriptWebAppUrl,
+  sendReportToAppsScript
+} from './appsScript';
 
 export const OFFICER_WHATSAPP_NUMBER = '6282266355313';
 export const OFFICER_WHATSAPP_DISPLAY = '0822-6635-5313';
+
+/**
+ * Checks whether at least one automated server-side WhatsApp relay endpoint is configured.
+ */
+export const hasConfiguredWhatsAppRelay = (): boolean => {
+  const webhookUrl = (import.meta.env.VITE_WA_WEBHOOK_URL || '').trim();
+  const appsScriptUrl = getSavedAppsScriptUrl();
+  return Boolean(webhookUrl) || isValidAppsScriptWebAppUrl(appsScriptUrl);
+};
 
 /**
  * Formats a concise, structured WhatsApp alert message for UPTD PPA Nagekeo officers.
@@ -39,7 +52,7 @@ export const buildOfficerWhatsAppMessage = (report: ReportItem): string => {
     `- No. HP/WA: ${report.reporterContact}`,
     `- Layanan Dibutuhkan: ${services.length > 0 ? services.join(', ') : '-'}`,
     '',
-    `*Kronologi Singkat:*`,
+    '*Kronologi Singkat:*',
     shortStory,
     '',
     'Mohon segera ditindaklanjuti melalui Dasbor Manajemen Kasus UPTD PPA Dinas PMDP3A Kab. Nagekeo.'
@@ -47,18 +60,23 @@ export const buildOfficerWhatsAppMessage = (report: ReportItem): string => {
 };
 
 /**
- * Automatically dispatches the new report alert to the officer WhatsApp relay/webhook
- * in the background immediately after the complaint is saved—without requiring any citizen click.
+ * Automatically dispatches the new report alert to the configured WhatsApp relay/webhook
+ * in the background immediately after the complaint is saved.
  */
 export const dispatchAutoWhatsAppNotification = async (
   report: ReportItem
-): Promise<{ dispatched: boolean; channel: 'webhook' | 'apps_script' }> => {
+): Promise<{ dispatched: boolean; configured: boolean; channel: 'webhook' | 'apps_script' | 'none' }> => {
   const message = buildOfficerWhatsAppMessage(report);
   const webhookUrl = (import.meta.env.VITE_WA_WEBHOOK_URL || '').trim();
+  const appsScriptValid = isValidAppsScriptWebAppUrl(getSavedAppsScriptUrl());
+
+  if (!webhookUrl && !appsScriptValid) {
+    return { dispatched: false, configured: false, channel: 'none' };
+  }
 
   if (webhookUrl) {
     try {
-      await fetch(webhookUrl, {
+      const res = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -70,23 +88,29 @@ export const dispatchAutoWhatsAppNotification = async (
           report
         })
       });
-      await sendReportToAppsScript(report, undefined, {
-        targetNumber: OFFICER_WHATSAPP_NUMBER,
-        message
-      });
-      return { dispatched: true, channel: 'webhook' };
+      if (appsScriptValid) {
+        await sendReportToAppsScript(report, undefined, {
+          targetNumber: OFFICER_WHATSAPP_NUMBER,
+          message
+        });
+      }
+      return { dispatched: res.ok, configured: true, channel: 'webhook' };
     } catch (err) {
       console.warn('WA webhook dispatch notice, falling back to Apps Script relay:', err);
     }
   }
 
-  const res = await sendReportToAppsScript(report, undefined, {
-    targetNumber: OFFICER_WHATSAPP_NUMBER,
-    message
-  });
+  if (appsScriptValid) {
+    const res = await sendReportToAppsScript(report, undefined, {
+      targetNumber: OFFICER_WHATSAPP_NUMBER,
+      message
+    });
+    return {
+      dispatched: res.success,
+      configured: true,
+      channel: 'apps_script'
+    };
+  }
 
-  return {
-    dispatched: res.success,
-    channel: 'apps_script'
-  };
+  return { dispatched: false, configured: true, channel: 'none' };
 };
