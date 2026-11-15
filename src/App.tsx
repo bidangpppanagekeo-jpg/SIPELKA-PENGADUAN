@@ -21,7 +21,7 @@ import { AdminPortal } from './components/AdminPortal';
 import { GuidebookModal } from './components/GuidebookModal';
 import { getAccessToken, initAuth, isFirebaseOfficerSignedIn } from './services/googleAuth';
 import { getSavedSpreadsheetInfo, appendComplaintToSpreadsheet } from './services/googleSheets';
-import { sendReportToAppsScript } from './services/appsScript';
+import { dispatchAutoWhatsAppNotification, OFFICER_WHATSAPP_DISPLAY } from './services/whatsappNotifier';
 import { 
   saveReportToFirestore, 
   fetchReportsFromFirestoreOnce,
@@ -200,6 +200,7 @@ export default function App() {
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string>('');
+  const [waAutoStatus, setWaAutoStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
   // Quick exit handler with privacy cache wiper
   const handleQuickExit = () => {
@@ -386,19 +387,22 @@ export default function App() {
       setReports((prev) => [newReport, ...prev]);
       setSubmittedTicket(newReport);
       setFormStep(4); // Success step
+      setWaAutoStatus('sending');
       recordSubmissionTimestamp();
 
-      // 2. Sinkronisasi sekunder ke Google Apps Script & Google Sheets (non-blocking)
+      // 2. Kirim pesan notifikasi otomatis ke WhatsApp Petugas UPTD PPA & Google Sheets (tanpa perlu klik pelapor)
       (async () => {
         try {
-          await sendReportToAppsScript(newReport);
+          const waResult = await dispatchAutoWhatsAppNotification(newReport);
+          setWaAutoStatus(waResult.dispatched ? 'sent' : 'error');
           const token = await getAccessToken();
           const activeSheet = getSavedSpreadsheetInfo();
           if (token && activeSheet?.id) {
             await appendComplaintToSpreadsheet(token, activeSheet.id, newReport);
           }
         } catch (err) {
-          console.warn('Secondary sync notice:', err);
+          console.warn('Secondary sync / auto WA notice:', err);
+          setWaAutoStatus('error');
         }
       })();
     } catch (err: any) {
@@ -413,6 +417,7 @@ export default function App() {
   const handleResetForm = () => {
     setFormStep(1);
     setSubmittedTicket(null);
+    setWaAutoStatus('idle');
     setReporterName('');
     setReporterContact('');
     setVictimName('');
@@ -1162,16 +1167,28 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* WhatsApp Direct Option */}
-                <a
-                  href={`https://wa.me/6282266355313?text=Halo%20UPTD%20PPA%20Dinas%20PMDP3A%20Kabupaten%20Nagekeo,%20saya%20telah%20mengirim%20pengaduan%20dengan%20Kode%20Tiket:%20${submittedTicket.ticketCode}%20atas%20nama%20korban%20${encodeURIComponent(submittedTicket.victimName)}.%20Mohon%20bantuan%20segera.`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-sm min-h-[46px] touch-manipulation"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Kirim Konfirmasi Cepat ke WhatsApp UPTD PPA</span>
-                </a>
+                {/* Status Pengiriman Pesan Otomatis ke WhatsApp Petugas UPTD PPA */}
+                <div className={`p-3.5 rounded-xl border text-left text-xs space-y-1 ${
+                  waAutoStatus === 'error'
+                    ? 'bg-amber-50 border-amber-200 text-amber-900'
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                }`}>
+                  <div className="flex items-center gap-2 font-bold">
+                    <MessageCircle className={`w-4 h-4 shrink-0 ${
+                      waAutoStatus === 'sending' ? 'animate-pulse text-emerald-700' : waAutoStatus === 'error' ? 'text-amber-700' : 'text-emerald-700'
+                    }`} />
+                    <span>
+                      {waAutoStatus === 'sending'
+                        ? `Mengirim pesan otomatis ke WhatsApp Petugas (${OFFICER_WHATSAPP_DISPLAY})...`
+                        : waAutoStatus === 'error'
+                          ? 'Pengaduan tercatat di sistem dinas (relay WhatsApp sedang menunggu sinkronisasi)'
+                          : `Pesan pengaduan diteruskan otomatis ke WhatsApp Petugas UPTD PPA (${OFFICER_WHATSAPP_DISPLAY})`}
+                    </span>
+                  </div>
+                  <p className="text-[11px] opacity-90 pl-6 leading-relaxed">
+                    Anda tidak perlu mengirim konfirmasi cepat secara manual. Tim UPTD PPA akan segera menindaklanjuti berkas ini. Untuk panggilan darurat langsung, hubungi Hotline 24 Jam di kanan atas.
+                  </p>
+                </div>
 
                 <div className="pt-1">
                   <button

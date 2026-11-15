@@ -35,7 +35,8 @@ export const saveAppsScriptUrl = (url: string): void => {
  */
 export const sendReportToAppsScript = async (
   report: ReportItem,
-  webAppUrl?: string
+  webAppUrl?: string,
+  whatsappNotification?: { targetNumber: string; message: string }
 ): Promise<{ success: boolean; message: string }> => {
   const targetUrl = webAppUrl || getSavedAppsScriptUrl();
   try {
@@ -44,7 +45,8 @@ export const sendReportToAppsScript = async (
       source: 'SI-PELKA Nagekeo App',
       timestamp: new Date().toISOString(),
       report: reportItemToRow(report),
-      data: report
+      data: report,
+      whatsappNotification: whatsappNotification || null
     };
 
     await fetch(targetUrl, {
@@ -336,16 +338,66 @@ function doGet(e) {
   }
 }
 
+// Helper: Kirim Notifikasi WhatsApp Otomatis ke Petugas UPTD PPA (Server-Side Google Apps Script)
+// Isi Script Properties (Setelan Proyek > Properti Skrip):
+// - FONNTE_TOKEN (jika pakai Fonnte.com) ATAU
+// - CALLMEBOT_APIKEY (jika pakai CallMeBot gratis) ATAU
+// - OFFICER_EMAIL (opsional, untuk notifikasi email instan ke bidangpppanagekeo@gmail.com)
+function sendAutoWhatsAppToOfficer(waData) {
+  if (!waData || !waData.message) return;
+  var props = PropertiesService.getScriptProperties();
+  var targetPhone = waData.targetNumber || "6282266355313";
+  var message = waData.message;
+
+  try {
+    // 1. Jalur Fonnte WhatsApp Gateway (Rekomendasi resmi untuk kirim otomatis tanpa klik)
+    var fonnteToken = props.getProperty("FONNTE_TOKEN");
+    if (fonnteToken) {
+      UrlFetchApp.fetch("https://api.fonnte.com/send", {
+        method: "post",
+        headers: { Authorization: fonnteToken },
+        payload: { target: targetPhone, message: message, countryCode: "62" },
+        muteHttpExceptions: true
+      });
+    }
+
+    // 2. Jalur CallMeBot WhatsApp API (Alternatif gratis)
+    var callMeBotKey = props.getProperty("CALLMEBOT_APIKEY");
+    if (callMeBotKey) {
+      var cbUrl = "https://api.callmebot.com/whatsapp.php?phone=" +
+        encodeURIComponent(targetPhone) +
+        "&text=" + encodeURIComponent(message) +
+        "&apikey=" + encodeURIComponent(callMeBotKey);
+      UrlFetchApp.fetch(cbUrl, { muteHttpExceptions: true });
+    }
+
+    // 3. Notifikasi Email Resmi Dinas (Jika diaktifkan)
+    var officerEmail = props.getProperty("OFFICER_EMAIL") || "bidangpppanagekeo@gmail.com";
+    if (officerEmail) {
+      MailApp.sendEmail({
+        to: officerEmail,
+        subject: "[SI-PELKA Nagekeo] Pengaduan Baru Masuk",
+        body: message
+      });
+    }
+  } catch (waErr) {
+    Logger.log("Auto WA notice: " + waErr.toString());
+  }
+}
+
 // 2. POST: Menyimpan, memperbarui, atau menghapus data pengaduan kasus
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     var sheet = getOrCreateSheet();
 
-    // A. Tambah aduan baru dari formulir warga
+    // A. Tambah aduan baru dari formulir warga + kirim notifikasi otomatis ke WA petugas
     if (data.action === "ADD_COMPLAINT" && data.report) {
       sheet.appendRow(data.report);
-      return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Aduan berhasil dicatat di Spreadsheet!" }))
+      if (data.whatsappNotification) {
+        sendAutoWhatsAppToOfficer(data.whatsappNotification);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Aduan berhasil dicatat di Spreadsheet & notifikasi dikirim!" }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
