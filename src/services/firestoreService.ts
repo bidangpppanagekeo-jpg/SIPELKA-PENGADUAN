@@ -4,7 +4,8 @@ import {
   collection, 
   doc, 
   setDoc, 
-  getDoc, 
+  getDoc,
+  getDocs,
   updateDoc, 
   deleteDoc, 
   onSnapshot, 
@@ -81,15 +82,33 @@ export const testFirestoreConnection = async () => {
 testFirestoreConnection();
 
 /**
- * Save a new public complaint to Firestore (Zero-Trust write)
+ * Save a new public complaint to Firestore (clean create operation)
  */
 export const saveReportToFirestore = async (report: ReportItem): Promise<void> => {
   const path = `reports/${report.ticketCode}`;
   try {
     const docRef = doc(db, 'reports', report.ticketCode);
-    await setDoc(docRef, report, { merge: true });
+    await setDoc(docRef, report);
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
+  }
+};
+
+/**
+ * Fetch all reports once (Restricted to Authorized Dinas Officer)
+ */
+export const fetchReportsFromFirestoreOnce = async (): Promise<ReportItem[]> => {
+  const path = 'reports';
+  try {
+    const q = query(collection(db, path), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    const loaded: ReportItem[] = [];
+    snapshot.forEach((docSnap) => {
+      loaded.push(docSnap.data() as ReportItem);
+    });
+    return loaded;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
   }
 };
 
@@ -98,7 +117,6 @@ export const saveReportToFirestore = async (report: ReportItem): Promise<void> =
  */
 export const seedInitialReportsIfEmpty = async (): Promise<void> => {
   // In production, real complaints submitted by citizens are stored directly.
-  // Mock seeding is intentionally bypassed to maintain absolute clean real records.
 };
 
 /**

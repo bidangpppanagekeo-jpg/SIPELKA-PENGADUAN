@@ -7,7 +7,7 @@ import {
   Activity, ArrowLeft
 } from 'lucide-react';
 import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
-import { CATEGORY_LABELS, INITIAL_REPORTS } from '../data/mockData';
+import { CATEGORY_LABELS } from '../data/mockData';
 import { checkAdminLoginRateLimit, recordFailedAdminLogin, resetAdminLoginAttempts } from '../utils/security';
 import { 
   initAuth, 
@@ -35,6 +35,8 @@ import {
 
 interface AdminPortalProps {
   reports: ReportItem[];
+  isCloudConnected?: boolean;
+  onRefreshCloudReports?: () => Promise<void>;
   onUpdateStatus: (ticketCode: string, newStatus: CaseStatus) => void;
   onAddOfficerNote: (ticketCode: string, summary: string, actionPlan: string, assignedUnit: string) => void;
   onOfficerSendMessage: (ticketCode: string, messageText: string) => void;
@@ -48,6 +50,8 @@ const ALLOWED_OFFICER_EMAIL = 'bidangpppanagekeo@gmail.com';
 
 export const AdminPortal: React.FC<AdminPortalProps> = ({
   reports,
+  isCloudConnected = false,
+  onRefreshCloudReports,
   onUpdateStatus,
   onAddOfficerNote,
   onOfficerSendMessage,
@@ -60,6 +64,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [officerEmail, setOfficerEmail] = useState<string>('');
   const [pinCode, setPinCode] = useState<string>('');
   const [loginError, setLoginError] = useState<string>('');
+  const [isRefreshingCloud, setIsRefreshingCloud] = useState<boolean>(false);
+  const [cloudRefreshMsg, setCloudRefreshMsg] = useState<string>('');
 
   // Sidebar navigation state: 'masuk' (Data Masuk) | 'verifikasi' (Pengaduan Terverifikasi)
   const [sidebarTab, setSidebarTab] = useState<'masuk' | 'verifikasi'>('masuk');
@@ -67,6 +73,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // Menu Utama Dropdown State (Di klik baru muncul agar layar tidak terkesan penuh)
   const [isMainMenuOpen, setIsMainMenuOpen] = useState<boolean>(false);
   const mainMenuRef = useRef<HTMLDivElement>(null);
+  const onOfficerLoginChangeRef = useRef(onOfficerLoginChange);
+  onOfficerLoginChangeRef.current = onOfficerLoginChange;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -91,6 +99,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // Selected case for detailed full-width review (null = list view)
   const [selectedCase, setSelectedCase] = useState<ReportItem | null>(null);
   const [verificationSuccessNotice, setVerificationSuccessNotice] = useState<string>('');
+
+  useEffect(() => {
+    if (selectedCase) {
+      const latest = reports.find((r) => r.ticketCode === selectedCase.ticketCode);
+      if (latest && latest !== selectedCase) {
+        setSelectedCase(latest);
+      }
+    }
+  }, [reports]);
+
+  const handleManualRefreshCloud = async () => {
+    if (!onRefreshCloudReports) return;
+    setIsRefreshingCloud(true);
+    setCloudRefreshMsg('');
+    setSyncError('');
+    try {
+      await onRefreshCloudReports();
+      setCloudRefreshMsg('Data pengaduan terbaru berhasil dimuat dari Server Cloud Dinas.');
+      setTimeout(() => setCloudRefreshMsg(''), 4000);
+    } catch (err: any) {
+      setSyncError(err?.message || 'Gagal memuat ulang data dari Server Cloud.');
+    } finally {
+      setIsRefreshingCloud(false);
+    }
+  };
 
   const handleVerifyCase = (ticketCode: string) => {
     onUpdateStatus(ticketCode, 'verifikasi');
@@ -197,11 +230,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  const handleRestoreSampleReports = () => {
-    onReportsSynced?.(INITIAL_REPORTS);
-    setSelectedCase(INITIAL_REPORTS[0] || null);
-  };
-
   const handleSaveAppsScriptUrl = (url: string) => {
     setAppsScriptUrlState(url);
     saveAppsScriptUrl(url);
@@ -222,23 +250,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           setGoogleUser(user);
           setGoogleToken(token);
           setIsAuthenticated(true);
-          onOfficerLoginChange?.(ALLOWED_OFFICER_EMAIL);
+          onOfficerLoginChangeRef.current?.(ALLOWED_OFFICER_EMAIL);
         } else {
           setGoogleUser(null);
           setGoogleToken(null);
-          onOfficerLoginChange?.(null);
         }
       },
       () => {
         setGoogleUser(null);
         setGoogleToken(null);
-        onOfficerLoginChange?.(null);
       }
     );
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [onOfficerLoginChange]);
+  }, []);
 
   // Google Sign In handler strictly for bidangpppanagekeo@gmail.com
   const handleConnectGoogle = async () => {
@@ -261,21 +287,37 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         }
 
         setGoogleUser(res.user);
-        setGoogleToken(res.accessToken);
+        setGoogleToken(res.accessToken || null);
         setIsAuthenticated(true);
         setLoginError('');
         onOfficerLoginChange?.(ALLOWED_OFFICER_EMAIL);
 
-        const currentSheet = getSavedSpreadsheetInfo();
-        if (!currentSheet) {
-          const newSheet = await createComplaintSpreadsheet(res.accessToken);
-          setActiveSheet(newSheet);
-          await syncAllComplaintsToSpreadsheet(res.accessToken, newSheet.id, reports);
-          setSyncStatusMsg(`Berhasil terhubung ke Google Sheets! Dokumen "${newSheet.title}" otomatis dibuat dan disinkronkan.`);
+        // Tarik langsung data pengaduan masyarakat terbaru dari Cloud Firestore
+        try {
+          await onRefreshCloudReports?.();
+        } catch (cloudErr) {
+          console.warn('Cloud refresh notice after login:', cloudErr);
+        }
+
+        if (res.accessToken) {
+          try {
+            const currentSheet = getSavedSpreadsheetInfo();
+            if (!currentSheet) {
+              const newSheet = await createComplaintSpreadsheet(res.accessToken);
+              setActiveSheet(newSheet);
+              await syncAllComplaintsToSpreadsheet(res.accessToken, newSheet.id, reports);
+              setSyncStatusMsg(`Berhasil terhubung ke Cloud Dinas & Google Sheets! Dokumen "${newSheet.title}" otomatis dibuat dan disinkronkan.`);
+            } else {
+              setActiveSheet(currentSheet);
+              await syncAllComplaintsToSpreadsheet(res.accessToken, currentSheet.id, reports);
+              setSyncStatusMsg(`Terhubung dengan Cloud Dinas & Google Sheets. ${reports.length} data pengaduan kasus disinkronkan.`);
+            }
+          } catch (sheetErr: any) {
+            console.warn('Google Sheets sync notice:', sheetErr);
+            setSyncStatusMsg('Terhubung ke Cloud Dinas (Firestore Real-Time). Sinkronisasi Google Sheets dapat dijalankan lewat Menu Utama.');
+          }
         } else {
-          setActiveSheet(currentSheet);
-          await syncAllComplaintsToSpreadsheet(res.accessToken, currentSheet.id, reports);
-          setSyncStatusMsg(`Terhubung dengan Google Sheets. ${reports.length} data pengaduan kasus disinkronkan.`);
+          setSyncStatusMsg('Terhubung ke Cloud Dinas (Firestore Real-Time).');
         }
       }
     } catch (e: any) {
@@ -524,7 +566,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <span>{isSigningInGoogle ? 'Menghubungkan Google...' : 'Masuk dengan Akun Google Dinas'}</span>
             </button>
             <p className="text-[10px] text-center text-stone-500">
-              Otomatis menyinkronkan data pengaduan dengan Google Sheets
+              Wajib untuk melihat pengaduan masyarakat secara Real-Time dari Cloud Dinas & Google Sheets
             </p>
           </div>
 
@@ -558,9 +600,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               />
             </div>
 
-            {loginError && (
+            {(loginError || syncError) && (
               <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium">
-                {loginError}
+                {loginError || syncError}
               </div>
             )}
 
@@ -605,7 +647,37 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {isCloudConnected ? (
+              <div className="flex items-center gap-2">
+                <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800 rounded-lg">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Cloud Real-Time Aktif
+                </span>
+                <button
+                  type="button"
+                  onClick={handleManualRefreshCloud}
+                  disabled={isRefreshingCloud}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-teal-800 hover:bg-teal-700 text-white rounded-lg transition-colors cursor-pointer border border-teal-600 disabled:opacity-60"
+                  title="Muat Ulang Data Pengaduan Masyarakat Terbaru dari Server Cloud"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingCloud ? 'animate-spin' : ''}`} />
+                  <span>{isRefreshingCloud ? 'Memuat...' : 'Muat Ulang Data'}</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleConnectGoogle}
+                disabled={isSigningInGoogle}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-colors cursor-pointer border border-amber-500 disabled:opacity-60"
+                title="Hubungkan Akun Google Dinas untuk Menerima Pengaduan Masyarakat secara Real-Time"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSigningInGoogle ? 'animate-spin' : ''}`} />
+                <span>{isSigningInGoogle ? 'Menghubungkan...' : 'Hubungkan Cloud Google'}</span>
+              </button>
+            )}
+
             <button
               onClick={exportToCSV}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg transition-colors cursor-pointer border border-stone-700"
@@ -703,6 +775,47 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
           {/* MAIN CONTENT AREA (9 cols: Filters + Single Screen Content) */}
           <div className="lg:col-span-9 flex flex-col overflow-hidden bg-white">
+            {/* Banner Sinkronisasi Cloud Dinas jika masuk lewat PIN lokal */}
+            {!isCloudConnected && (
+              <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-200 flex flex-wrap items-center justify-between gap-3 text-xs shrink-0">
+                <div className="flex items-start sm:items-center gap-2 text-amber-950">
+                  <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5 sm:mt-0" />
+                  <div>
+                    <span className="font-bold">Mode PIN Lokal: </span>
+                    <span className="text-amber-900">
+                      Untuk menarik seluruh pengaduan masyarakat dari HP/perangkat lain secara real-time, hubungkan Akun Google Dinas ({ALLOWED_OFFICER_EMAIL}).
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleConnectGoogle}
+                  disabled={isSigningInGoogle}
+                  className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white font-bold rounded-lg text-xs cursor-pointer shrink-0 shadow-2xs disabled:opacity-60"
+                >
+                  {isSigningInGoogle ? 'Menghubungkan...' : 'Hubungkan Akun Google Dinas (Sync Cloud)'}
+                </button>
+              </div>
+            )}
+
+            {(cloudRefreshMsg || syncStatusMsg || syncError) && (
+              <div className={`px-4 py-2 border-b text-xs flex items-center justify-between gap-2 shrink-0 ${
+                syncError ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              }`}>
+                <span className="font-medium">{syncError || cloudRefreshMsg || syncStatusMsg}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSyncError('');
+                    setCloudRefreshMsg('');
+                    setSyncStatusMsg('');
+                  }}
+                  className="text-current opacity-70 hover:opacity-100 cursor-pointer p-0.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             
             {/* Filter Toolbar */}
             <div className="p-3 bg-stone-50 border-b border-stone-200 flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs">
@@ -1032,16 +1145,33 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </div>
                 ) : (
                   <div className="p-12 text-center text-xs text-stone-500 space-y-3 bg-white rounded-2xl border border-stone-200">
-                    <p className="text-stone-600 font-medium">Tidak ada data pengaduan yang cocok pada kategori ini.</p>
+                    <p className="text-stone-600 font-medium">
+                      {reports.length === 0
+                        ? 'Belum ada data pengaduan masuk di tampilan ini.'
+                        : 'Tidak ada data pengaduan yang cocok pada kategori atau filter ini.'}
+                    </p>
                     {reports.length === 0 && (
                       <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-                        <button
-                          type="button"
-                          onClick={handleRestoreSampleReports}
-                          className="px-3.5 py-2 bg-teal-800 text-white rounded-lg font-semibold hover:bg-teal-900 cursor-pointer shadow-xs transition-colors"
-                        >
-                          Muat Ulang Data Awal Kasus
-                        </button>
+                        {isCloudConnected ? (
+                          <button
+                            type="button"
+                            onClick={handleManualRefreshCloud}
+                            disabled={isRefreshingCloud}
+                            className="px-3.5 py-2 bg-teal-800 text-white rounded-lg font-semibold hover:bg-teal-900 cursor-pointer shadow-xs transition-colors inline-flex items-center gap-1.5 disabled:opacity-60"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingCloud ? 'animate-spin' : ''}`} />
+                            <span>{isRefreshingCloud ? 'Memuat dari Cloud...' : 'Muat Ulang dari Server Cloud'}</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleConnectGoogle}
+                            disabled={isSigningInGoogle}
+                            className="px-3.5 py-2 bg-amber-700 text-white rounded-lg font-semibold hover:bg-amber-800 cursor-pointer shadow-xs transition-colors"
+                          >
+                            {isSigningInGoogle ? 'Menghubungkan...' : 'Hubungkan Akun Google Dinas (Sync Cloud)'}
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={handlePullFromAppsScript}

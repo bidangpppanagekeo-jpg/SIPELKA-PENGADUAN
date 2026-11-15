@@ -39,7 +39,7 @@ service cloud.firestore {
         && data.incidentDescription.size() > 0
         && data.incidentDescription.size() <= 10000
         && data.status is string
-        && (data.status == 'masuk' || data.status == 'verifikasi' || data.status == 'penjangkauan' || data.status == 'pendampingan' || data.status == 'selesai')
+        && (data.status == 'masuk' || data.status == 'verifikasi' || data.status == 'dilanjutkan' || data.status == 'penjangkauan' || data.status == 'pendampingan' || data.status == 'selesai')
         && data.urgency is string
         && (data.urgency == 'darurat' || data.urgency == 'mendesak' || data.urgency == 'standar')
         && data.createdAt is string

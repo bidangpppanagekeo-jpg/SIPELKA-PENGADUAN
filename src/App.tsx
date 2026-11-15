@@ -19,16 +19,15 @@ import {
 import { DisguiseView } from './components/DisguiseView';
 import { AdminPortal } from './components/AdminPortal';
 import { GuidebookModal } from './components/GuidebookModal';
-import { getAccessToken, initAuth } from './services/googleAuth';
+import { getAccessToken, initAuth, isFirebaseOfficerSignedIn } from './services/googleAuth';
 import { getSavedSpreadsheetInfo, appendComplaintToSpreadsheet } from './services/googleSheets';
 import { sendReportToAppsScript } from './services/appsScript';
 import { 
   saveReportToFirestore, 
+  fetchReportsFromFirestoreOnce,
   subscribeToReports, 
   updateReportInFirestore, 
-  deleteReportFromFirestore, 
-  getReportByTicketCode,
-  seedInitialReportsIfEmpty 
+  deleteReportFromFirestore
 } from './services/firestoreService';
 
 const OFFICIAL_DINAS_EMAIL = 'bidangpppanagekeo@gmail.com';
@@ -49,6 +48,7 @@ export default function App() {
   });
 
   const isDinasOfficer = currentOfficerEmail?.trim().toLowerCase() === OFFICIAL_DINAS_EMAIL;
+  const [isFirebaseOfficer, setIsFirebaseOfficer] = useState<boolean>(() => isFirebaseOfficerSignedIn(OFFICIAL_DINAS_EMAIL));
 
   // Secure reports state: In a public environment, complaints are strictly confidential
   // and are ONLY loaded into memory when the authorized Dinas Officer is logged in.
@@ -75,19 +75,22 @@ export default function App() {
     }
   }, [reports, currentOfficerEmail]);
 
-  // Real-time synchronization from Firestore cloud - strictly gated to Authorized Dinas Officer
+  // Real-time synchronization from Firestore cloud - strictly gated to Firebase-verified Dinas Officer
   useEffect(() => {
-    if (!isAdminOpen && !isDinasOfficer) return;
+    if (!isFirebaseOfficer) return;
 
-    const unsubscribe = subscribeToReports((liveReports) => {
-      if (liveReports && liveReports.length > 0) {
+    const unsubscribe = subscribeToReports(
+      (liveReports) => {
         setReports(liveReports);
+      },
+      (err) => {
+        console.warn('Firestore realtime sync notice:', err.message);
       }
-    });
+    );
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [isAdminOpen, isDinasOfficer]);
+  }, [isFirebaseOfficer]);
 
   // Attach anti-inspection / cybersecurity shield
   useEffect(() => {
@@ -103,14 +106,16 @@ export default function App() {
         const email = user.email?.trim().toLowerCase() || null;
         if (email === OFFICIAL_DINAS_EMAIL) {
           setCurrentOfficerEmail(email);
+          setIsFirebaseOfficer(isFirebaseOfficerSignedIn(OFFICIAL_DINAS_EMAIL));
           try { localStorage.setItem('sipelka_officer_email', email); } catch {}
         } else {
           setCurrentOfficerEmail(null);
+          setIsFirebaseOfficer(false);
           try { localStorage.removeItem('sipelka_officer_email'); } catch {}
         }
       },
       () => {
-        // Keep current state
+        setIsFirebaseOfficer(false);
       }
     );
     return () => {
@@ -177,6 +182,8 @@ export default function App() {
   // Result & Ticket State
   const [submittedTicket, setSubmittedTicket] = useState<ReportItem | null>(null);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string>('');
 
   // Quick exit handler with privacy cache wiper
   const handleQuickExit = () => {
@@ -226,9 +233,11 @@ export default function App() {
     setFormStep(3);
   };
 
-  // Submit pengaduan lengkap
-  const handleSubmitReport = (e: React.FormEvent) => {
+  // Submit pengaduan lengkap ke Cloud Firestore & Sistem Dinas
+  const handleSubmitReport = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setSubmitError('');
 
     // 1. Anti-spam / Bot flooding defense: 30 seconds rate-limit between submissions
     const rateCheck = checkSubmissionRateLimit();
@@ -254,24 +263,33 @@ export default function App() {
       return;
     }
 
-    const sanitizedVictimName = sanitizeInput(victimName);
-    const sanitizedReporterName = sanitizeInput(reporterName);
-    const sanitizedReporterContact = sanitizeInput(reporterContact);
-    const sanitizedIncidentStory = sanitizeInput(incidentStory);
-    const sanitizedPerpetratorName = sanitizeInput(perpetratorName);
-    const sanitizedVictimAddress = sanitizeInput(victimAddressDetail);
+    const sanitizedVictimName = sanitizeInput(victimName).slice(0, 180);
+    const sanitizedReporterName = sanitizeInput(reporterName).slice(0, 180);
+    const sanitizedReporterContact = sanitizeInput(reporterContact).slice(0, 48);
+    const sanitizedIncidentStory = sanitizeInput(incidentStory).slice(0, 10000);
+    const sanitizedPerpetratorName = sanitizeInput(perpetratorName).slice(0, 180);
+    const sanitizedVictimAddress = sanitizeInput(victimAddressDetail).slice(0, 300);
 
-    const randomTicketNum = Math.floor(1000 + Math.random() * 9000);
+    if (!sanitizedIncidentStory) {
+      alert('Mohon masukkan uraian kronologi kejadian dengan kata-kata biasa.');
+      return;
+    }
+
+    const generateTicketCode = () => {
+      const randomSix = Math.floor(100000 + Math.random() * 900000);
+      return `PPA-NGK-${new Date().getFullYear()}-${randomSix}`;
+    };
+
+    const ticketCode = generateTicketCode();
     const randomPin = Math.floor(1000 + Math.random() * 9000).toString();
-    const ticketCode = `PPA-NGK-${new Date().getFullYear()}-${randomTicketNum}`;
 
     const fullVictimAddress = sanitizedVictimAddress
       ? `${sanitizedVictimAddress}, Desa ${desaKelurahan}, Kec. ${kecamatan}`
       : `Desa ${desaKelurahan}, Kec. ${kecamatan}, Kab. Nagekeo`;
 
-    const newReport: ReportItem = {
+    const buildReportPayload = (code: string): ReportItem => ({
       id: `rep_${Date.now()}`,
-      ticketCode,
+      ticketCode: code,
       secretPin: randomPin,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -281,10 +299,12 @@ export default function App() {
       confidentiality,
 
       // 1. DATA KORBAN
-      victimName: confidentiality === 'anonim' ? `Korban (${sanitizedVictimName ? sanitizedVictimName.charAt(0) + '...' : 'Inisial'})` : (sanitizedVictimName || 'Tanpa Nama'),
+      victimName: (confidentiality === 'anonim'
+        ? `Korban (${sanitizedVictimName ? sanitizedVictimName.charAt(0) + '...' : 'Inisial'})`
+        : (sanitizedVictimName || 'Tanpa Nama')).slice(0, 200),
       victimGender,
-      victimAge: victimAge.trim() || 'Dewasa',
-      victimAddress: fullVictimAddress,
+      victimAge: victimAge.trim().slice(0, 40) || 'Dewasa',
+      victimAddress: fullVictimAddress.slice(0, 480),
       kecamatan,
       desaKelurahan,
       incidentDate,
@@ -295,8 +315,8 @@ export default function App() {
       // 2. DATA PELAKU
       perpetratorKnown,
       perpetratorName: perpetratorKnown ? (sanitizedPerpetratorName || 'Pihak Terlapor') : 'Tidak Diketahui',
-      perpetratorAge: perpetratorKnown ? (perpetratorAge.trim() || '-') : '-',
-      perpetratorAddress: perpetratorKnown ? (perpetratorAddress.trim() || '-') : '-',
+      perpetratorAge: perpetratorKnown ? (perpetratorAge.trim().slice(0, 40) || '-') : '-',
+      perpetratorAddress: perpetratorKnown ? (perpetratorAddress.trim().slice(0, 400) || '-') : '-',
       perpetratorRelationship: perpetratorKnown ? perpetratorRelationship : 'Orang Tidak Dikenal',
 
       // 3. DATA PELAPOR
@@ -327,37 +347,50 @@ export default function App() {
           officerName: 'Sistem Penerimaan UPTD PPA',
           date: new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }),
           summary: `Pengaduan lengkap diterima via SI-PELKA Nagekeo (${urgency.toUpperCase()}). Menunggu verifikasi tim reaksi cepat.`,
-          actionPlan: `Konfirmasi ke pelapor (${reporterContact}) dan penyiapan rujukan kasus.`,
+          actionPlan: `Konfirmasi ke pelapor (${sanitizedReporterContact}) dan penyiapan rujukan kasus.`,
           assignedUnit: 'UPTD PPA Kabupaten Nagekeo'
         }
       ],
       messages: []
-    };
+    });
 
-    setReports([newReport, ...reports]);
-    setSubmittedTicket(newReport);
-    setFormStep(4); // Success step
-    recordSubmissionTimestamp();
+    let newReport = buildReportPayload(ticketCode);
+    setIsSubmitting(true);
 
-    // Auto-sync ke Cloud Firestore, Google Apps Script Web App, dan Google Sheets
-    (async () => {
+    try {
+      // 1. Simpan ke Cloud Firestore secara langsung agar pasti tercatat di Dasbor Manajemen Kasus Dinas
       try {
-        // 1. Simpan ke Cloud Firestore agar langsung terbaca di Dasbor Manajemen Kasus Dinas secara realtime
         await saveReportToFirestore(newReport);
-
-        // 2. Kirim ke Google Apps Script Web App (jika terpasang)
-        await sendReportToAppsScript(newReport);
-
-        // 3. Simpan ke Google Sheets aktif jika akun dinas telah terautentikasi
-        const token = await getAccessToken();
-        const activeSheet = getSavedSpreadsheetInfo();
-        if (token && activeSheet?.id) {
-          await appendComplaintToSpreadsheet(token, activeSheet.id, newReport);
-        }
-      } catch (err) {
-        console.warn('Auto-sync notice:', err);
+      } catch (firstErr) {
+        // Retry once with a fresh ticket code in case of rare ticket collision
+        newReport = buildReportPayload(generateTicketCode());
+        await saveReportToFirestore(newReport);
       }
-    })();
+
+      setReports((prev) => [newReport, ...prev]);
+      setSubmittedTicket(newReport);
+      setFormStep(4); // Success step
+      recordSubmissionTimestamp();
+
+      // 2. Sinkronisasi sekunder ke Google Apps Script & Google Sheets (non-blocking)
+      (async () => {
+        try {
+          await sendReportToAppsScript(newReport);
+          const token = await getAccessToken();
+          const activeSheet = getSavedSpreadsheetInfo();
+          if (token && activeSheet?.id) {
+            await appendComplaintToSpreadsheet(token, activeSheet.id, newReport);
+          }
+        } catch (err) {
+          console.warn('Secondary sync notice:', err);
+        }
+      })();
+    } catch (err: any) {
+      console.error('Gagal mengirim pengaduan ke server dinas:', err);
+      setSubmitError('Gagal terhubung ke server pengaduan Dinas. Pastikan koneksi internet aktif lalu coba kirim kembali, atau hubungi Hotline WhatsApp 24 Jam.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Reset form
@@ -1023,12 +1056,20 @@ export default function App() {
                   </div>
                 </div>
 
+                {submitError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-medium flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <span>{submitError}</span>
+                  </div>
+                )}
+
                 {/* Tombol Navigasi Akhir */}
                 <div className="flex gap-2.5 pt-2">
                   <button
                     type="button"
+                    disabled={isSubmitting}
                     onClick={() => setFormStep(2)}
-                    className="w-1/3 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-xl transition-colors flex items-center justify-center gap-1 cursor-pointer min-h-[48px] touch-manipulation"
+                    className="w-1/3 py-3 bg-stone-100 hover:bg-stone-200 disabled:opacity-50 text-stone-700 font-semibold text-xs rounded-xl transition-colors flex items-center justify-center gap-1 cursor-pointer min-h-[48px] touch-manipulation"
                   >
                     <ChevronLeft className="w-4 h-4" />
                     <span>Sebelumnya</span>
@@ -1036,11 +1077,12 @@ export default function App() {
 
                   <button
                     type="button"
+                    disabled={isSubmitting}
                     onClick={handleSubmitReport}
-                    className="w-2/3 py-3 bg-teal-800 hover:bg-teal-900 active:bg-teal-950 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[48px] touch-manipulation"
+                    className="w-2/3 py-3 bg-teal-800 hover:bg-teal-900 active:bg-teal-950 disabled:opacity-70 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[48px] touch-manipulation"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Kirim Pengaduan Lengkap</span>
+                    <span>{isSubmitting ? 'Mengirim ke Dinas...' : 'Kirim Pengaduan Lengkap'}</span>
                   </button>
                 </div>
               </div>
@@ -1229,12 +1271,20 @@ export default function App() {
       {isAdminOpen && (
         <AdminPortal
           reports={reports}
+          isCloudConnected={isFirebaseOfficer}
+          onRefreshCloudReports={async () => {
+            if (!isFirebaseOfficerSignedIn(OFFICIAL_DINAS_EMAIL)) return;
+            const latest = await fetchReportsFromFirestoreOnce();
+            setReports(latest);
+          }}
           onOfficerLoginChange={(email) => {
             if (email === OFFICIAL_DINAS_EMAIL) {
               setCurrentOfficerEmail(email);
+              setIsFirebaseOfficer(isFirebaseOfficerSignedIn(OFFICIAL_DINAS_EMAIL));
               try { localStorage.setItem('sipelka_officer_email', email); } catch {}
             } else {
               setCurrentOfficerEmail(null);
+              setIsFirebaseOfficer(false);
               try { localStorage.removeItem('sipelka_officer_email'); } catch {}
             }
           }}

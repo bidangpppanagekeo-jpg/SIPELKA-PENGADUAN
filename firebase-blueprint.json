@@ -44,7 +44,7 @@
         "status": {
           "type": "string",
           "description": "Tahapan penanganan kasus",
-          "enum": ["masuk", "verifikasi", "penjangkauan", "pendampingan", "selesai"]
+          "enum": ["masuk", "verifikasi", "dilanjutkan", "penjangkauan", "pendampingan", "selesai"]
         },
         "confidentiality": {
           "type": "string",
