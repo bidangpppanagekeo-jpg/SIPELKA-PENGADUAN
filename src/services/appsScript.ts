@@ -1,4 +1,5 @@
-import { ReportItem } from '../types';
+import { ReportItem, ReportCategory } from '../types';
+import { CATEGORY_LABELS } from '../data/mockData';
 import { reportItemToRow } from './googleSheets';
 
 export const DEFAULT_APPS_SCRIPT_PROJECT_ID = '1bkzLtf_KGyGHAd2_s98LpnWXzzKxU27eqo6m5A3Um_0Adxae3fT1btKc';
@@ -150,97 +151,133 @@ export const deleteFromAppsScript = async (
   }
 };
 
+const mapCategoryLabelToKey = (rawCategory: string): ReportCategory => {
+  const normalized = (rawCategory || '').trim().toLowerCase();
+  for (const [key, meta] of Object.entries(CATEGORY_LABELS)) {
+    if (key === normalized || meta.label.toLowerCase() === normalized) {
+      return key as ReportCategory;
+    }
+  }
+  if (normalized.includes('seksual')) return 'kekerasan_seksual';
+  if (normalized.includes('psikis') || normalized.includes('teror')) return 'psikis_intimidasi';
+  if (normalized.includes('penelantaran')) return 'penelantaran_anak';
+  if (normalized.includes('perkawinan')) return 'perkawinan_anak';
+  if (normalized.includes('perdagangan') || normalized.includes('tppo')) return 'tppo_human_trafficking';
+  if (normalized.includes('siber') || normalized.includes('cyber') || normalized.includes('kbgo')) return 'kbgo_cyberbullying';
+  if (normalized.includes('eksploitasi')) return 'eksploitasi_anak';
+  return 'kdrt_fisik';
+};
+
+const parseSheetDateToIso = (rawDate: any): string => {
+  if (!rawDate) return new Date().toISOString();
+  if (rawDate instanceof Date && !isNaN(rawDate.getTime())) return rawDate.toISOString();
+  const parsed = Date.parse(String(rawDate));
+  if (!isNaN(parsed)) return new Date(parsed).toISOString();
+  return new Date().toISOString();
+};
+
 /**
  * Fetch complaints from Google Apps Script Web App (2-Way Pull)
  */
 export const fetchComplaintsFromAppsScript = async (
   webAppUrl?: string
 ): Promise<ReportItem[] | null> => {
-  const targetUrl = webAppUrl || getSavedAppsScriptUrl();
+  const targetUrl = (webAppUrl || getSavedAppsScriptUrl()).trim();
+  if (!targetUrl || !targetUrl.startsWith('https://script.google.com/')) {
+    return null;
+  }
   try {
     const separator = targetUrl.includes('?') ? '&' : '?';
     const res = await fetch(`${targetUrl}${separator}action=GET_ALL&t=${Date.now()}`);
     if (!res.ok) {
       throw new Error(`HTTP error ${res.status}`);
     }
-    const data = await res.json();
+    const text = await res.text();
+    if (!text.trim().startsWith('{')) {
+      return null;
+    }
+    const data = JSON.parse(text);
     if (data && data.rows && Array.isArray(data.rows)) {
-      return data.rows.map((row: any[], index: number) => {
-        const ticketCode = row[0] || `PPA-NGK-2026-${1000 + index}`;
-        const dateStr = row[1] || new Date().toISOString();
-        const urgencyStr = (row[2] || 'mendesak').toString().toLowerCase();
-        const statusStr = (row[4] || 'masuk').toString().toLowerCase();
-        const victimName = row[5] || 'Korban';
-        const victimGender = (row[6]?.toString().toLowerCase().includes('perempuan') ? 'perempuan' : 'laki-laki') as 'perempuan' | 'laki-laki';
-        const victimAge = row[7]?.toString() || '25';
-        const victimAddress = row[8] || 'Nagekeo';
-        const kecamatan = (row[9] || 'Aesesa') as any;
-        const desaKelurahan = row[10] || 'Danga';
-        const incidentTimePlace = row[11] || '';
-        const incidentPlace = row[12] || 'Rumah';
-        const incidentDescription = row[13] || row[3] || 'Laporan pengaduan kasus.';
-        const perpetratorKnown = row[14]?.toString().toLowerCase().includes('ya') ?? true;
-        const perpetratorName = row[15] || 'Terduga Pelaku';
-        const perpetratorAge = row[16]?.toString() || '-';
-        const perpetratorRelationship = row[17] || 'Suami / Pasangan';
-        const perpetratorAddress = row[18] || '-';
-        const reporterName = row[19] || 'Pelapor';
-        const reporterRelationship = row[20] || 'Korban Sendiri';
-        const reporterContact = row[21]?.toString() || '-';
-        const confidentiality = row[22]?.toString().toLowerCase() === 'anonim' ? 'anonim' : 'rahasia';
-        const servicesStr = (row[23] || '').toString();
-        const officerNoteStr = row[24] || 'Telaah UPTD PPA';
+      return data.rows
+        .filter((row: any[]) => Array.isArray(row) && row[0])
+        .map((row: any[], index: number) => {
+          const ticketCode = String(row[0] || `PPA-NGK-2026-${1000 + index}`).trim();
+          const dateStr = row[1] ? String(row[1]) : new Date().toLocaleDateString('id-ID');
+          const isoCreated = parseSheetDateToIso(row[1]);
+          const urgencyStr = (row[2] || 'mendesak').toString().toLowerCase();
+          const category = mapCategoryLabelToKey(String(row[3] || ''));
+          const statusStr = (row[4] || 'masuk').toString().toLowerCase();
+          const victimName = String(row[5] || 'Korban');
+          const victimGender = (row[6]?.toString().toLowerCase().includes('perempuan') ? 'perempuan' : 'laki-laki') as 'perempuan' | 'laki-laki';
+          const victimAge = row[7]?.toString() || 'Dewasa';
+          const victimAddress = String(row[8] || 'Nagekeo');
+          const kecamatan = (row[9] || 'Aesesa') as any;
+          const desaKelurahan = String(row[10] || 'Danga');
+          const incidentTimePlace = String(row[11] || '');
+          const incidentPlace = String(row[12] || 'Rumah');
+          const incidentDescription = String(row[13] || row[3] || 'Laporan pengaduan kasus.');
+          const perpetratorKnown = row[14]?.toString().toLowerCase().includes('ya') ?? true;
+          const perpetratorName = String(row[15] || 'Terduga Pelaku');
+          const perpetratorAge = row[16]?.toString() || '-';
+          const perpetratorRelationship = String(row[17] || 'Suami / Pasangan');
+          const perpetratorAddress = String(row[18] || '-');
+          const reporterName = String(row[19] || 'Pelapor');
+          const reporterRelationship = String(row[20] || 'Korban Sendiri');
+          const reporterContact = row[21]?.toString() || '-';
+          const confidentiality = row[22]?.toString().toLowerCase() === 'anonim' ? 'anonim' : 'rahasia';
+          const servicesStr = (row[23] || '').toString();
+          const officerNoteStr = String(row[24] || 'Telaah UPTD PPA');
 
-        return {
-          id: `as_${index}_${Date.now()}`,
-          ticketCode,
-          secretPin: '111217',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          urgency: ['darurat', 'mendesak', 'standar'].includes(urgencyStr) ? urgencyStr : 'mendesak',
-          category: 'kdrt_fisik',
-          status: ['masuk', 'verifikasi', 'dilanjutkan', 'penjangkauan', 'pendampingan', 'selesai'].includes(statusStr) ? statusStr : 'masuk',
-          confidentiality,
-          victimName,
-          victimGender,
-          victimAge,
-          victimAddress,
-          kecamatan,
-          desaKelurahan,
-          incidentDate: new Date().toISOString().split('T')[0],
-          incidentTime: incidentTimePlace,
-          incidentPlace,
-          incidentDescription,
-          perpetratorKnown,
-          perpetratorName,
-          perpetratorAge,
-          perpetratorAddress,
-          perpetratorRelationship,
-          reporterName,
-          reporterRelationship,
-          reporterContact,
-          servicesNeeded: {
-            medisVisum: servicesStr.includes('Visum'),
-            rumahAman: servicesStr.includes('Rumah Aman'),
-            bantuanHukum: servicesStr.includes('Advokasi') || servicesStr.includes('Polres'),
-            konselingPsikologis: servicesStr.includes('Konseling') || servicesStr.includes('Trauma'),
-            mediasiKeluarga: servicesStr.includes('Mediasi'),
-            bantuanSosialDarurat: servicesStr.includes('Bansos')
-          },
-          attachments: [],
-          officerNotes: [
-            {
-              id: `note_as_${index}`,
-              officerName: 'Tim UPTD PPA Dinas PMDP3A',
-              date: dateStr,
-              summary: officerNoteStr,
-              actionPlan: 'Penanganan terpadu kasus.',
-              assignedUnit: 'UPTD PPA Kabupaten Nagekeo'
-            }
-          ],
-          messages: []
-        };
-      });
+          return {
+            id: `as_${ticketCode}`,
+            ticketCode,
+            secretPin: '',
+            createdAt: isoCreated,
+            updatedAt: isoCreated,
+            urgency: (['darurat', 'mendesak', 'standar'].includes(urgencyStr) ? urgencyStr : 'mendesak') as any,
+            category,
+            status: (['masuk', 'verifikasi', 'dilanjutkan', 'penjangkauan', 'pendampingan', 'selesai'].includes(statusStr) ? statusStr : 'masuk') as any,
+            confidentiality,
+            victimName,
+            victimGender,
+            victimAge,
+            victimAddress,
+            kecamatan,
+            desaKelurahan,
+            incidentDate: isoCreated.split('T')[0],
+            incidentTime: incidentTimePlace,
+            incidentPlace,
+            incidentDescription,
+            perpetratorKnown,
+            perpetratorName,
+            perpetratorAge,
+            perpetratorAddress,
+            perpetratorRelationship,
+            reporterName,
+            reporterRelationship,
+            reporterContact,
+            servicesNeeded: {
+              medisVisum: servicesStr.includes('Visum'),
+              rumahAman: servicesStr.includes('Rumah Aman'),
+              bantuanHukum: servicesStr.includes('Advokasi') || servicesStr.includes('Polres'),
+              konselingPsikologis: servicesStr.includes('Konseling') || servicesStr.includes('Trauma'),
+              mediasiKeluarga: servicesStr.includes('Mediasi'),
+              bantuanSosialDarurat: servicesStr.includes('Bansos')
+            },
+            attachments: [],
+            officerNotes: [
+              {
+                id: `note_as_${ticketCode}`,
+                officerName: 'Tim UPTD PPA Dinas PMDP3A',
+                date: dateStr,
+                summary: officerNoteStr,
+                actionPlan: 'Penanganan terpadu kasus.',
+                assignedUnit: 'UPTD PPA Kabupaten Nagekeo'
+              }
+            ],
+            messages: []
+          };
+        });
     }
     return null;
   } catch (e) {

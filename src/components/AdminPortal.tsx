@@ -153,6 +153,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [isSyncingSheet, setIsSyncingSheet] = useState<boolean>(false);
   const [syncStatusMsg, setSyncStatusMsg] = useState<string>('');
   const [syncError, setSyncError] = useState<string>('');
+  const [unauthorizedDomainInfo, setUnauthorizedDomainInfo] = useState<{ hostname: string; projectId: string } | null>(null);
+  const [copiedDomain, setCopiedDomain] = useState<boolean>(false);
   
   // Case Deletion State & Modal
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState<boolean>(false);
@@ -218,10 +220,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       const remote = await fetchComplaintsFromAppsScript(appsScriptUrl);
       if (remote && remote.length > 0) {
         onReportsSynced?.(remote);
-        setSelectedCase(remote[0] || null);
         setAppsScriptMsg(`Sukses! ${remote.length} data pengaduan berhasil ditarik dari Google Sheets.`);
       } else {
-        setAppsScriptMsg('Spreadsheet masih kosong atau belum ada pengaduan tercatat.');
+        setAppsScriptMsg('Spreadsheet belum terhubung sebagai Web App JSON atau masih kosong.');
       }
     } catch (e: any) {
       setAppsScriptMsg(e.message || 'Gagal menarik data dari Google Apps Script.');
@@ -229,6 +230,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       setIsSyncingAppsScript(false);
     }
   };
+
+  // Auto-poll Google Apps Script Web App jika URL kustom sudah dipasang dan Cloud Firestore belum tersambung
+  useEffect(() => {
+    if (!isAuthenticated || isCloudConnected) return;
+    if (!appsScriptUrl || appsScriptUrl.includes(DEFAULT_APPS_SCRIPT_PROJECT_ID)) return;
+
+    let cancelled = false;
+    const pullOnce = async () => {
+      const remote = await fetchComplaintsFromAppsScript(appsScriptUrl);
+      if (!cancelled && remote && remote.length > 0) {
+        onReportsSynced?.(remote);
+      }
+    };
+
+    pullOnce();
+    const timer = setInterval(pullOnce, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [isAuthenticated, isCloudConnected, appsScriptUrl]);
 
   const handleSaveAppsScriptUrl = (url: string) => {
     setAppsScriptUrlState(url);
@@ -271,6 +293,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setIsSigningInGoogle(true);
     setSyncError('');
     setSyncStatusMsg('');
+    setUnauthorizedDomainInfo(null);
     try {
       const res = await signInWithGoogle();
       if (res) {
@@ -290,6 +313,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         setGoogleToken(res.accessToken || null);
         setIsAuthenticated(true);
         setLoginError('');
+        setUnauthorizedDomainInfo(null);
         onOfficerLoginChange?.(ALLOWED_OFFICER_EMAIL);
 
         // Tarik langsung data pengaduan masyarakat terbaru dari Cloud Firestore
@@ -322,7 +346,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       }
     } catch (e: any) {
       console.error(e);
-      setSyncError(e.message || 'Gagal masuk dengan Akun Google.');
+      if (e?.code === 'auth/unauthorized-domain' || String(e?.message || '').includes('origin_mismatch')) {
+        const host = e?.hostname || (typeof window !== 'undefined' ? window.location.hostname : '');
+        const projectId = e?.projectId || 'gen-lang-client-0878470528';
+        setUnauthorizedDomainInfo({ hostname: host, projectId });
+        setSyncError(`Domain "${host}" belum didaftarkan di Firebase Authorized Domains agar bisa terhubung otomatis.`);
+      } else {
+        setSyncError(e.message || 'Gagal masuk dengan Akun Google.');
+      }
     } finally {
       setIsSigningInGoogle(false);
     }
@@ -606,6 +637,47 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
             )}
 
+            {unauthorizedDomainInfo && (
+              <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-[11px] text-amber-950 space-y-2">
+                <div className="font-bold text-amber-900">Aktivasi Domain Cloud (1 Kali Saja):</div>
+                <p className="leading-relaxed text-amber-900">
+                  Agar pengaduan dari HP/perangkat lain masuk otomatis di domain ini, daftarkan domain berikut ke <strong>Firebase Authorized Domains</strong>:
+                </p>
+                <div className="flex items-center gap-1.5 bg-white border border-amber-300 rounded-lg px-2.5 py-1.5">
+                  <code className="font-mono font-bold text-stone-900 truncate flex-1">{unauthorizedDomainInfo.hostname}</code>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(unauthorizedDomainInfo.hostname);
+                      setCopiedDomain(true);
+                      setTimeout(() => setCopiedDomain(false), 2500);
+                    }}
+                    className="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-950 font-semibold rounded text-[10px] cursor-pointer shrink-0"
+                  >
+                    {copiedDomain ? 'Tersalin!' : 'Salin'}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-0.5">
+                  <a
+                    href={`https://console.firebase.google.com/project/${unauthorizedDomainInfo.projectId}/authentication/settings`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-teal-800 hover:bg-teal-900 text-white font-semibold rounded-lg text-[11px]"
+                  >
+                    <span>Buka Pengaturan Firebase</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={handleConnectGoogle}
+                    className="px-2.5 py-1.5 bg-white border border-amber-400 hover:bg-amber-100 text-amber-950 font-semibold rounded-lg text-[11px] cursor-pointer"
+                  >
+                    Coba Lagi
+                  </button>
+                </div>
+              </div>
+            )}
+
             <button
               type="submit"
               className="w-full py-3 sm:py-2.5 bg-teal-800 hover:bg-teal-900 active:bg-teal-950 text-white font-semibold rounded-xl sm:rounded-lg shadow-sm transition-colors cursor-pointer min-h-[48px] touch-manipulation"
@@ -814,6 +886,60 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
+              </div>
+            )}
+
+            {unauthorizedDomainInfo && (
+              <div className="px-4 py-3 bg-amber-50 border-b border-amber-300 text-xs text-amber-950 space-y-2 shrink-0">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-bold text-amber-950 flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span>Langkah Aktivasi Domain Agar Data Perangkat Lain Masuk Otomatis</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setUnauthorizedDomainInfo(null)}
+                    className="text-amber-800 hover:text-amber-950 cursor-pointer p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="text-[11px] text-amber-900 leading-relaxed">
+                  Google menolak popup login karena domain <strong>{unauthorizedDomainInfo.hostname}</strong> belum terdaftar di Firebase Authentication. Tambahkan domain ini 1 kali saja di menu <strong>Authentication &rarr; Settings &rarr; Authorized domains &rarr; Add domain</strong>:
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5 bg-white border border-amber-300 rounded-lg px-2.5 py-1.5">
+                    <code className="font-mono font-bold text-stone-900 text-[11px]">{unauthorizedDomainInfo.hostname}</code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(unauthorizedDomainInfo.hostname);
+                        setCopiedDomain(true);
+                        setTimeout(() => setCopiedDomain(false), 2500);
+                      }}
+                      className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-950 font-semibold rounded text-[10px] cursor-pointer"
+                    >
+                      {copiedDomain ? 'Tersalin!' : 'Salin Domain'}
+                    </button>
+                  </div>
+                  <a
+                    href={`https://console.firebase.google.com/project/${unauthorizedDomainInfo.projectId}/authentication/settings`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-800 hover:bg-teal-900 text-white font-semibold rounded-lg text-[11px]"
+                  >
+                    <span>Buka Pengaturan Authorized Domains Firebase</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={handleConnectGoogle}
+                    disabled={isSigningInGoogle}
+                    className="px-3 py-1.5 bg-white border border-amber-400 hover:bg-amber-100 text-amber-950 font-bold rounded-lg text-[11px] cursor-pointer"
+                  >
+                    {isSigningInGoogle ? 'Menghubungkan...' : 'Coba Hubungkan Kembali'}
+                  </button>
+                </div>
               </div>
             )}
             

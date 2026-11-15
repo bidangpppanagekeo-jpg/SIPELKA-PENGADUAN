@@ -163,9 +163,26 @@ export const signInWithGoogle = async (): Promise<{ user: GoogleAuthUser; access
       throw new Error('Login Google dibatalkan. Silakan klik kembali untuk masuk.');
     }
 
+    // If current domain (e.g. custom Cloudflare domain) is not yet listed in Firebase Authorized Domains,
+    // GIS will also fail with Error 400: origin_mismatch. Surface an actionable error immediately.
+    if (fbError?.code === 'auth/unauthorized-domain') {
+      const host = typeof window !== 'undefined' ? window.location.hostname : '';
+      const err: any = new Error(
+        `Domain "${host}" belum didaftarkan di Firebase Authentication Authorized Domains.`
+      );
+      err.code = 'auth/unauthorized-domain';
+      err.hostname = host;
+      err.projectId = firebaseConfig.projectId;
+      throw err;
+    }
+
+    if (fbError?.code === 'auth/popup-blocked') {
+      throw new Error('Pop-up login diblokir oleh browser. Silakan izinkan pop-up untuk situs ini lalu coba lagi.');
+    }
+
     console.warn('Firebase signInWithPopup notice, attempting GIS + signInWithCredential fallback:', fbError?.code || fbError?.message);
 
-    // 2. Fallback: GIS Token Client + Firebase signInWithCredential (works even on unwhitelisted custom domains)
+    // 2. Fallback: GIS Token Client + Firebase signInWithCredential
     try {
       await loadGisScript();
       const clientId = firebaseConfig.oAuthClientId || '280285921895-ubujbkjd0e2o89jns6nvh350otgfn8md.apps.googleusercontent.com';
@@ -209,10 +226,7 @@ export const signInWithGoogle = async (): Promise<{ user: GoogleAuthUser; access
       return { user, accessToken: token };
     } catch (gisError: any) {
       console.error('Google Sign-In failed on both Firebase Popup and GIS fallback:', gisError);
-      if (fbError?.code === 'auth/popup-blocked') {
-        throw new Error('Pop-up login diblokir oleh browser. Silakan izinkan pop-up untuk situs ini lalu coba lagi.');
-      }
-      throw new Error(gisError?.message || fbError?.message || 'Gagal autentikasi Google. Pastikan pop-up diizinkan dan coba lagi.');
+      throw new Error(gisError?.message || fbError?.message || 'Gagal autentikasi Google. Pastikan pop-up diizinkan dan domain terdaftar.');
     }
   } finally {
     isSigningIn = false;

@@ -87,8 +87,24 @@ export default function App() {
         console.warn('Firestore realtime sync notice:', err.message);
       }
     );
+
+    const refreshOnFocusOrOnline = () => {
+      if (document.visibilityState === 'visible' && isFirebaseOfficerSignedIn(OFFICIAL_DINAS_EMAIL)) {
+        fetchReportsFromFirestoreOnce()
+          .then((latest) => {
+            if (latest) setReports(latest);
+          })
+          .catch((e) => console.warn('Cloud focus refresh notice:', e));
+      }
+    };
+
+    window.addEventListener('online', refreshOnFocusOrOnline);
+    document.addEventListener('visibilitychange', refreshOnFocusOrOnline);
+
     return () => {
       if (unsubscribe) unsubscribe();
+      window.removeEventListener('online', refreshOnFocusOrOnline);
+      document.removeEventListener('visibilitychange', refreshOnFocusOrOnline);
     };
   }, [isFirebaseOfficer]);
 
@@ -1294,7 +1310,11 @@ export default function App() {
                 r.ticketCode === ticketCode ? { ...r, status: newStatus, updatedAt: new Date().toISOString() } : r
               )
             );
-            updateReportInFirestore(ticketCode, { status: newStatus });
+            if (isFirebaseOfficerSignedIn(OFFICIAL_DINAS_EMAIL)) {
+              updateReportInFirestore(ticketCode, { status: newStatus }).catch((e) =>
+                console.warn('Update status sync notice:', e)
+              );
+            }
           }}
           onAddOfficerNote={(ticketCode, summary, actionPlan, assignedUnit) => {
             const newNote = {
@@ -1309,7 +1329,11 @@ export default function App() {
               prev.map((r) => {
                 if (r.ticketCode === ticketCode) {
                   const updatedNotes = [...r.officerNotes, newNote];
-                  updateReportInFirestore(ticketCode, { officerNotes: updatedNotes });
+                  if (isFirebaseOfficerSignedIn(OFFICIAL_DINAS_EMAIL)) {
+                    updateReportInFirestore(ticketCode, { officerNotes: updatedNotes }).catch((e) =>
+                      console.warn('Add note sync notice:', e)
+                    );
+                  }
                   return {
                     ...r,
                     officerNotes: updatedNotes,
@@ -1332,7 +1356,11 @@ export default function App() {
               prev.map((r) => {
                 if (r.ticketCode === ticketCode) {
                   const updatedMessages = [...r.messages, newMsg];
-                  updateReportInFirestore(ticketCode, { messages: updatedMessages });
+                  if (isFirebaseOfficerSignedIn(OFFICIAL_DINAS_EMAIL)) {
+                    updateReportInFirestore(ticketCode, { messages: updatedMessages }).catch((e) =>
+                      console.warn('Send message sync notice:', e)
+                    );
+                  }
                   return {
                     ...r,
                     messages: updatedMessages,
@@ -1345,14 +1373,30 @@ export default function App() {
           }}
           onDeleteReport={(ticketCode) => {
             setReports((prev) => prev.filter((r) => r.ticketCode !== ticketCode));
-            deleteReportFromFirestore(ticketCode);
+            if (isFirebaseOfficerSignedIn(OFFICIAL_DINAS_EMAIL)) {
+              deleteReportFromFirestore(ticketCode).catch((e) =>
+                console.warn('Delete report sync notice:', e)
+              );
+            }
           }}
           onClose={() => setIsAdminOpen(false)}
           onReportsSynced={(newReports) => {
-            setReports(newReports);
-            // Simpan sinkronisasi ke Firestore agar seluruh sesi terupdate
-            for (const r of newReports) {
-              saveReportToFirestore(r);
+            setReports((prev) => {
+              const byTicket = new Map<string, ReportItem>();
+              for (const item of prev) byTicket.set(item.ticketCode, item);
+              for (const incoming of newReports) {
+                if (!byTicket.has(incoming.ticketCode)) {
+                  byTicket.set(incoming.ticketCode, incoming);
+                }
+              }
+              return Array.from(byTicket.values()).sort(
+                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              );
+            });
+            if (isFirebaseOfficerSignedIn(OFFICIAL_DINAS_EMAIL)) {
+              for (const r of newReports) {
+                saveReportToFirestore(r).catch((e) => console.warn('Synced report push notice:', e));
+              }
             }
           }}
         />
