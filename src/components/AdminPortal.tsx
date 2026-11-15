@@ -2,13 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Lock, Shield, CheckCircle2, AlertTriangle, Search, Filter, 
   Download, Printer, FileText, Send, User, MapPin, Calendar, 
-  MessageSquare, ChevronRight, ChevronDown, Menu, X, Clock, Eye, ExternalLink, RefreshCw,
+  MessageSquare, ChevronRight, ChevronDown, Menu, X, Clock, Eye, EyeOff, ExternalLink, RefreshCw,
   Table2, Check, AlertCircle, LogOut, Copy, LayoutDashboard, Users, CheckSquare, PhoneCall, Trash2,
   Activity, ArrowLeft
 } from 'lucide-react';
 import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
 import { CATEGORY_LABELS } from '../data/mockData';
-import { checkAdminLoginRateLimit, recordFailedAdminLogin, resetAdminLoginAttempts } from '../utils/security';
+import { 
+  checkAdminLoginRateLimit, 
+  recordFailedAdminLogin, 
+  resetAdminLoginAttempts,
+  verifyOfficerCredentials
+} from '../utils/security';
 import { 
   initAuth, 
   signInWithGoogle, 
@@ -61,8 +66,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onReportsSynced
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [officerEmail, setOfficerEmail] = useState<string>('');
-  const [pinCode, setPinCode] = useState<string>('');
+  const [officerUsername, setOfficerUsername] = useState<string>('');
+  const [officerPassword, setOfficerPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [isVerifyingLogin, setIsVerifyingLogin] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string>('');
   const [isRefreshingCloud, setIsRefreshingCloud] = useState<boolean>(false);
   const [cloudRefreshMsg, setCloudRefreshMsg] = useState<string>('');
@@ -419,9 +426,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  // Authentication handler strictly validating bidangpppanagekeo@gmail.com with brute-force defense
-  const handleLogin = (e: React.FormEvent) => {
+  // Authentication handler validating strong hashed officer Username & Password with brute-force defense
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isVerifyingLogin) return;
 
     const limitCheck = checkAdminLoginRateLimit();
     if (limitCheck.locked) {
@@ -429,32 +437,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       return;
     }
 
-    const cleanEmail = officerEmail.trim().toLowerCase();
-    
-    if (cleanEmail !== ALLOWED_OFFICER_EMAIL) {
-      const result = recordFailedAdminLogin();
-      if (result.locked) {
-        setLoginError('Akses Ditolak: Batas percobaan terlampaui. Sistem terkunci selama 5 menit.');
+    setIsVerifyingLogin(true);
+    try {
+      const isValid = await verifyOfficerCredentials(officerUsername, officerPassword);
+      if (isValid) {
+        resetAdminLoginAttempts();
+        setIsAuthenticated(true);
+        setLoginError('');
+        onOfficerLoginChange?.(ALLOWED_OFFICER_EMAIL);
       } else {
-        setLoginError(`Akses Ditolak: Email tidak terdaftar sebagai petugas resmi. Sisa percobaan: ${result.remainingAttempts}`);
+        const result = recordFailedAdminLogin();
+        setIsAuthenticated(false);
+        onOfficerLoginChange?.(null);
+        if (result.locked) {
+          setLoginError('Username atau Password salah. Batas percobaan terlampaui. Portal dikunci selama 5 menit demi keamanan siber.');
+        } else {
+          setLoginError(`Username atau Password Petugas tidak sah. Periksa huruf besar/kecil serta simbol. Sisa percobaan: ${result.remainingAttempts}`);
+        }
       }
-      setIsAuthenticated(false);
-      onOfficerLoginChange?.(null);
-      return;
-    }
-
-    if (pinCode === '111217') {
-      resetAdminLoginAttempts();
-      setIsAuthenticated(true);
-      setLoginError('');
-      onOfficerLoginChange?.(ALLOWED_OFFICER_EMAIL);
-    } else {
-      const result = recordFailedAdminLogin();
-      if (result.locked) {
-        setLoginError('Kode PIN salah. Batas percobaan terlampaui. Portal dikunci selama 5 menit demi keamanan siber.');
-      } else {
-        setLoginError(`Kode PIN Petugas tidak sah. Silakan periksa kembali PIN Anda. Sisa percobaan: ${result.remainingAttempts}`);
-      }
+    } finally {
+      setIsVerifyingLogin(false);
     }
   };
 
@@ -603,32 +605,43 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
           <div className="relative flex items-center my-2">
             <div className="flex-grow border-t border-stone-200"></div>
-            <span className="flex-shrink mx-2 text-[10px] text-stone-400 font-medium">atau masuk dengan PIN</span>
+            <span className="flex-shrink mx-2 text-[10px] text-stone-400 font-medium">atau masuk dengan Username & Password</span>
             <div className="flex-grow border-t border-stone-200"></div>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-3.5 text-xs">
             <div>
-              <label className="block font-semibold text-stone-700 mb-1">Email Dinas Petugas</label>
+              <label className="block font-semibold text-stone-700 mb-1">Username Petugas</label>
               <input
-                type="email"
-                value={officerEmail}
-                onChange={(e) => setOfficerEmail(e.target.value)}
-                placeholder="Masukkan email dinas resmi"
-                className="w-full text-base sm:text-xs border border-stone-300 rounded-xl sm:rounded-lg p-3 sm:p-2.5 focus:border-teal-700 focus:outline-none min-h-[44px]"
+                type="text"
+                autoComplete="username"
+                value={officerUsername}
+                onChange={(e) => setOfficerUsername(e.target.value)}
+                placeholder="Masukkan Username rahasia petugas"
+                className="w-full text-base sm:text-xs border border-stone-300 rounded-xl sm:rounded-lg p-3 sm:p-2.5 focus:border-teal-700 focus:outline-none font-mono min-h-[44px]"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-stone-700 mb-1">Kode PIN Petugas</label>
-              <input
-                type="password"
-                inputMode="numeric"
-                value={pinCode}
-                onChange={(e) => setPinCode(e.target.value)}
-                placeholder="Masukkan Kode PIN Petugas"
-                className="w-full text-base sm:text-xs border border-stone-300 rounded-xl sm:rounded-lg p-3 sm:p-2.5 focus:border-teal-700 focus:outline-none font-mono min-h-[44px]"
-              />
+              <label className="block font-semibold text-stone-700 mb-1">Password Petugas</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={officerPassword}
+                  onChange={(e) => setOfficerPassword(e.target.value)}
+                  placeholder="Masukkan Password kuat petugas"
+                  className="w-full text-base sm:text-xs border border-stone-300 rounded-xl sm:rounded-lg p-3 sm:p-2.5 pr-10 focus:border-teal-700 focus:outline-none font-mono min-h-[44px]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-1 cursor-pointer"
+                  title={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             {(loginError || syncError) && (
@@ -853,7 +866,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div className="flex items-start sm:items-center gap-2 text-amber-950">
                   <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5 sm:mt-0" />
                   <div>
-                    <span className="font-bold">Mode PIN Lokal: </span>
+                    <span className="font-bold">Mode Login Kredensial Lokal: </span>
                     <span className="text-amber-900">
                       Untuk menarik seluruh pengaduan masyarakat dari HP/perangkat lain secara real-time, hubungkan Akun Google Dinas ({ALLOWED_OFFICER_EMAIL}).
                     </span>

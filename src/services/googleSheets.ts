@@ -352,7 +352,7 @@ export const fetchComplaintsFromSpreadsheet = async (
       return {
         id: `fetched_${index}_${Date.now()}`,
         ticketCode,
-        secretPin: '111217',
+        secretPin: '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         urgency: ['darurat', 'mendesak', 'standar'].includes(urgencyStr) ? urgencyStr : 'mendesak',
