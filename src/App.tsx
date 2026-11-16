@@ -53,7 +53,6 @@ export default function App() {
     }
   });
 
-  const isDinasOfficer = currentOfficerEmail?.trim().toLowerCase() === OFFICIAL_DINAS_EMAIL;
   const [isFirebaseOfficer, setIsFirebaseOfficer] = useState<boolean>(() => isFirebaseOfficerSignedIn(OFFICIAL_DINAS_EMAIL));
 
   // Secure reports state: In a public environment, complaints are strictly confidential
@@ -1196,17 +1195,6 @@ export default function App() {
               <PhoneCall className="w-3.5 h-3.5" />
               <span>Kontak Darurat</span>
             </button>
-
-            {isDinasOfficer && (
-              <button
-                onClick={() => setIsAdminOpen(true)}
-                className="px-3 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer min-h-[38px] shadow-sm"
-                title="Portal Manajemen Kasus UPTD PPA Nagekeo"
-              >
-                <Shield className="w-4 h-4 text-emerald-300" />
-                <span>Petugas Dinas</span>
-              </button>
-            )}
           </div>
         </div>
 
