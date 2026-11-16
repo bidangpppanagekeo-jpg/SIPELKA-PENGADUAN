@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Shield, PhoneCall, PlusCircle, Search, Lock, LogOut, EyeOff, 
-  MapPin, CheckCircle2, Copy, Check, Send, AlertTriangle, 
+  MapPin, CheckCircle2, Send, AlertTriangle, 
   Camera, FileText, ChevronRight, ChevronLeft, ArrowLeft,
   X, MessageCircle, Clock, HeartHandshake, User, Users, Calendar,
   AlertCircle, BookOpen
@@ -203,7 +203,6 @@ export default function App() {
 
   // Result & Ticket State
   const [submittedTicket, setSubmittedTicket] = useState<ReportItem | null>(null);
-  const [copiedCode, setCopiedCode] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string>('');
 
@@ -1129,21 +1128,14 @@ export default function App() {
                   </p>
                 </div>
 
-                {/* Tiket Box */}
+                {/* Bukti Lapor Box */}
                 <div className="bg-stone-50 border-2 border-dashed border-teal-800 rounded-2xl p-4 text-left space-y-2.5">
                   <div className="text-[11px] font-bold text-teal-900 border-b border-stone-200 pb-1.5 flex items-center justify-between">
                     <span>BUKTI LAPOR PENGADUAN</span>
                     <span className="font-mono text-stone-500 font-normal">{new Date(submittedTicket.createdAt).toLocaleDateString('id-ID')}</span>
                   </div>
-                  
-                  <div>
-                    <span className="text-[11px] text-stone-500 block">Nomor Tiket Pengaduan:</span>
-                    <span className="text-xl font-bold font-mono tracking-wider text-teal-950">
-                      {submittedTicket.ticketCode}
-                    </span>
-                  </div>
 
-                  <div className="text-[11px] text-stone-600 space-y-0.5 pt-1 border-t border-stone-200">
+                  <div className="text-[11px] text-stone-600 space-y-0.5">
                     <div><strong>Korban:</strong> {submittedTicket.victimName} ({submittedTicket.victimGender === 'perempuan' ? 'Perempuan' : 'Laki-laki'}, {submittedTicket.victimAge} th)</div>
                     <div><strong>Pelapor:</strong> {submittedTicket.reporterName} ({submittedTicket.reporterRelationship}) · HP: {submittedTicket.reporterContact}</div>
                     <div><strong>Lokasi:</strong> {formatDesaKelurahanLabel(submittedTicket.desaKelurahan, submittedTicket.kecamatan)}, Kec. {submittedTicket.kecamatan}</div>
@@ -1155,26 +1147,12 @@ export default function App() {
                       <span className="truncate">Terhubung ke Google Sheets: {getSavedSpreadsheetInfo()?.title}</span>
                     </div>
                   )}
-
-                  <div className="pt-2 border-t border-stone-200 text-xs">
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(`Nomor Tiket: ${submittedTicket.ticketCode} (SI-PELKA Nagekeo)`);
-                        setCopiedCode(true);
-                        setTimeout(() => setCopiedCode(false), 3000);
-                      }}
-                      className="w-full py-2.5 bg-white border border-stone-300 hover:bg-stone-50 rounded-lg font-semibold text-teal-900 flex items-center justify-center gap-1.5 cursor-pointer min-h-[42px]"
-                    >
-                      {copiedCode ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                      <span>{copiedCode ? 'Nomor Tiket Berhasil Disalin!' : 'Salin Nomor Tiket Pengaduan'}</span>
-                    </button>
-                  </div>
                 </div>
 
                 {/* Tombol Opsional Konfirmasi Manual ke WhatsApp (Tidak Mengirim Otomatis) */}
                 <a
                   href={`https://wa.me/6282266355313?text=${encodeURIComponent(
-                    `Halo UPTD PPA Dinas PMDP3A Kab. Nagekeo, saya telah mengirim pengaduan melalui SI-PELKA dengan Nomor Tiket: ${submittedTicket.ticketCode}. Mohon tindak lanjut.`
+                    `Halo UPTD PPA Dinas PMDP3A Kab. Nagekeo, saya telah mengirim pengaduan melalui SI-PELKA (${formatDesaKelurahanLabel(submittedTicket.desaKelurahan, submittedTicket.kecamatan)}, Kec. ${submittedTicket.kecamatan}). Mohon tindak lanjut.`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
