@@ -7,7 +7,7 @@ import {
   Activity, ArrowLeft
 } from 'lucide-react';
 import { ReportItem, CaseStatus, UrgencyLevel, NagekeoKecamatan } from '../types';
-import { CATEGORY_LABELS } from '../data/mockData';
+import { CATEGORY_LABELS, formatDesaKelurahanLabel } from '../data/mockData';
 import { 
   checkAdminLoginRateLimit, 
   recordFailedAdminLogin, 
@@ -901,7 +901,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
                   <span>
                     <strong>Pengaduan Baru Masuk:</strong>{' '}
-                    <span className="font-mono">{incomingCaseAlert.ticketCode}</span> · Korban: <strong>{incomingCaseAlert.victimName}</strong> (Desa {incomingCaseAlert.desaKelurahan})
+                    <span className="font-mono">{incomingCaseAlert.ticketCode}</span> · Korban: <strong>{incomingCaseAlert.victimName}</strong> ({formatDesaKelurahanLabel(incomingCaseAlert.desaKelurahan, incomingCaseAlert.kecamatan)})
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1176,7 +1176,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       <div><span className="text-stone-400 text-[11px]">Alamat Domisili:</span> <span className="text-stone-800">{selectedCase.victimAddress}</span></div>
                       <div className="flex items-center gap-1 text-stone-600 text-[11px] pt-1">
                         <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                        <span>Desa/Kel: {selectedCase.desaKelurahan}, Kec. {selectedCase.kecamatan}</span>
+                        <span>{formatDesaKelurahanLabel(selectedCase.desaKelurahan, selectedCase.kecamatan)}, Kec. {selectedCase.kecamatan}</span>
                       </div>
                     </div>
                   </div>
@@ -1329,7 +1329,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             <div className="flex flex-col items-end justify-between shrink-0 self-stretch sm:self-auto gap-2">
                               <div className="flex items-center gap-1 text-[11px] text-stone-500">
                                 <MapPin className="w-3.5 h-3.5 text-teal-700" />
-                                <span>Desa {item.desaKelurahan}, Kec. {item.kecamatan}</span>
+                                <span>{formatDesaKelurahanLabel(item.desaKelurahan, item.kecamatan)}, Kec. {item.kecamatan}</span>
                               </div>
 
                               <button

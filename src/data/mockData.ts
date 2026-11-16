@@ -1,13 +1,162 @@
 import { ReportItem, NagekeoKecamatan } from '../types';
 
 export const NAGEKEO_KECAMATAN_DATA: Record<NagekeoKecamatan, string[]> = {
-  'Aesesa': ['Danga', 'Mbay I', 'Mbay II', 'Lape', 'Aeramo', 'Waekokak', 'Marapokot', 'Nangadhero', 'Olaia', 'Tendatoto', 'Towak'],
-  'Aesesa Selatan': ['Jawakisa', 'Renduteno', 'Rendu Tutubhada', 'Rendu Butowe', 'Rendumawo', 'Wajomara', 'Tadangalu'],
-  'Boawae': ['Nangaroro', 'Nataute', 'Roga', 'Regi', 'Gero', 'Kelimado', 'Olegedu', 'Raja', 'Raja Selatan', 'Raja Timur', 'Ratongambo', 'Wea Au'],
-  'Mauponggo': ['Mauponggo', 'Keli', 'Woloede', 'Lodaolo', 'Ua', 'Sawu', 'Aelogo', 'Belo', 'Salalejo', 'Lokalaba'],
-  'Nangaroro': ['Nangaroro', 'Banggastoba', 'Degasange', 'Tonggo', 'Bidoa', 'Podenura', 'Utetoto', 'Woewutu'],
-  'Keo Tengah': ['Witurombaua', 'Mbaenuamuri', 'Udiworowatu', 'Pautola', 'Keliwongo', 'Kotowuji Barat', 'Kotowuji Timur', 'Lewangera'],
-  'Wolowae': ['Tendakinde', 'Totomala', 'Anatogu', 'Natatoto', 'Keli']
+  'Aesesa': [
+    'Kelurahan Danga',
+    'Kelurahan Dhawe',
+    'Kelurahan Lape',
+    'Kelurahan Mbay I',
+    'Kelurahan Mbay II',
+    'Kelurahan Towak',
+    'Desa Aerama',
+    'Desa Labolewa',
+    'Desa Marapokot',
+    'Desa Nangadhero',
+    'Desa Ngegedhawe',
+    'Desa Nggolombay',
+    'Desa Nggolonio',
+    'Desa Olaia',
+    'Desa Tadakisa',
+    'Desa Tedamude',
+    'Desa Tonggurambang',
+    'Desa Waekokak'
+  ],
+  'Aesesa Selatan': [
+    'Desa Langedhawe',
+    'Desa Rendu Butowe',
+    'Desa Rendu Tutubhada',
+    'Desa Rendu Wawo',
+    'Desa Renduteno',
+    'Desa Tengatiba',
+    'Desa Wajomara'
+  ],
+  'Boawae': [
+    'Kelurahan Nageoga',
+    'Kelurahan Nagesapadhi',
+    'Kelurahan Natanage',
+    'Kelurahan Natanage Timur',
+    'Kelurahan Olakile',
+    'Kelurahan Ratongamobo',
+    'Kelurahan Rega',
+    'Kelurahan Wolopogo',
+    'Desa Alorawe',
+    'Desa Dhereisa',
+    'Desa Focolodorawe',
+    'Desa Gerodhere',
+    'Desa Kelewae',
+    'Desa Kelimado',
+    'Desa Legederu',
+    'Desa Mulakoli',
+    'Desa Nagerawe',
+    'Desa Raja',
+    'Desa Raja Selatan',
+    'Desa Raja Timur',
+    'Desa Rigi',
+    'Desa Rowa',
+    'Desa Solo',
+    'Desa Wea Au',
+    'Desa Wolowea',
+    'Desa Wolowea Barat',
+    'Desa Wolowea Timur'
+  ],
+  'Mauponggo': [
+    'Kelurahan Mauponggo',
+    'Desa Aewoe',
+    'Desa Bela',
+    'Desa Jawapogo',
+    'Desa Keliwatulewa',
+    'Desa Kotagana',
+    'Desa Lajawajo',
+    'Desa Lodaolo',
+    'Desa Lokalaba',
+    'Desa Maukeli',
+    'Desa Salalejo',
+    'Desa Sawu',
+    'Desa Selalejo Timur',
+    'Desa Ua',
+    'Desa Ululoga',
+    'Desa Woewolo',
+    'Desa Woloede',
+    'Desa Wolokisa',
+    'Desa Wololelu',
+    'Desa Wolotelu',
+    'Desa Wuliwalo'
+  ],
+  'Nangaroro': [
+    'Kelurahan Nangaroro',
+    'Desa Bidoa',
+    'Desa Degalea',
+    'Desa Kodaute',
+    'Desa Kotakeo',
+    'Desa Kotakeo Dua',
+    'Desa Kotakeo Satu',
+    'Desa Nataute',
+    'Desa Pagomogo',
+    'Desa Podenura',
+    'Desa Riti',
+    'Desa Tonggo',
+    'Desa Ulupulu',
+    'Desa Ulupulu I',
+    'Desa Utetoto',
+    'Desa Woedoa',
+    'Desa Woewutu',
+    'Desa Wokodekororo',
+    'Desa Wokowoe'
+  ],
+  'Keo Tengah': [
+    'Desa Keli',
+    'Desa Kotodirumali',
+    'Desa Kotowuji Barat',
+    'Desa Kotowuji Timur',
+    'Desa Ladolima',
+    'Desa Ladolima Timur',
+    'Desa Ladolima Utara',
+    'Desa Lewangera',
+    'Desa Mbaenuamuri',
+    'Desa Ngera',
+    'Desa Paumali',
+    'Desa Pautola',
+    'Desa Udiworowatu',
+    'Desa Wajo',
+    'Desa Wajo Timur',
+    'Desa Witurombaua'
+  ],
+  'Wolowae': [
+    'Desa Anakoli',
+    'Desa Natatoto',
+    'Desa Tendakinde',
+    'Desa Tendatoto',
+    'Desa Totomala'
+  ]
+};
+
+/**
+ * Normalizes village/ward display so Kelurahan is never prefixed with "Desa"
+ * and backwards-compatible unprefixed legacy entries (e.g. "Danga") format accurately.
+ */
+export const formatDesaKelurahanLabel = (
+  desaKelurahan: string,
+  kecamatan?: NagekeoKecamatan | string
+): string => {
+  const clean = (desaKelurahan || '').trim();
+  if (!clean) return '-';
+  if (/^(kelurahan|desa)\s+/i.test(clean)) {
+    return clean
+      .replace(/^kelurahan\s+/i, 'Kelurahan ')
+      .replace(/^desa\s+/i, 'Desa ');
+  }
+  const lower = clean.toLowerCase();
+  const candidates =
+    kecamatan && kecamatan in NAGEKEO_KECAMATAN_DATA
+      ? NAGEKEO_KECAMATAN_DATA[kecamatan as NagekeoKecamatan]
+      : Object.values(NAGEKEO_KECAMATAN_DATA).flat();
+
+  const match = candidates.find(
+    (entry) =>
+      entry.toLowerCase() === `kelurahan ${lower}` ||
+      entry.toLowerCase() === `desa ${lower}`
+  );
+  return match || `Desa ${clean}`;
 };
 
 export const EMERGENCY_CONTACTS = [
@@ -93,7 +242,7 @@ export const INITIAL_REPORTS: ReportItem[] = [
     victimAge: '32',
     victimAddress: 'Dusun II dekat Pasar Danga, Kelurahan Danga, Kec. Aesesa',
     kecamatan: 'Aesesa',
-    desaKelurahan: 'Danga',
+    desaKelurahan: 'Kelurahan Danga',
     incidentDate: '2026-11-05',
     incidentTime: '21:30 WITA',
     incidentPlace: 'Rumah Tinggal Keluarga',
@@ -165,7 +314,7 @@ export const INITIAL_REPORTS: ReportItem[] = [
     victimAge: '15',
     victimAddress: 'RT 04 Dusun Raja, Desa Raja, Kec. Boawae',
     kecamatan: 'Boawae',
-    desaKelurahan: 'Raja',
+    desaKelurahan: 'Desa Raja',
     incidentDate: '2026-11-06',
     incidentTime: '10:00 WITA',
     incidentPlace: 'Lingkungan Tempat Tinggal',
@@ -228,9 +377,9 @@ export const INITIAL_REPORTS: ReportItem[] = [
     victimName: 'Penyintas Anak (Inisial K.N.)',
     victimGender: 'perempuan',
     victimAge: '16',
-    victimAddress: 'Desa Keli, Kec. Mauponggo, Kab. Nagekeo',
+    victimAddress: 'Desa Maukeli, Kec. Mauponggo, Kab. Nagekeo',
     kecamatan: 'Mauponggo',
-    desaKelurahan: 'Keli',
+    desaKelurahan: 'Desa Maukeli',
     incidentDate: '2026-11-07',
     incidentTime: '17:45 WITA',
     incidentPlace: 'Jalan Setapak Perkebunan Cengkeh',
@@ -240,7 +389,7 @@ export const INITIAL_REPORTS: ReportItem[] = [
     perpetratorKnown: true,
     perpetratorName: 'Pemuda Warga Sekitar Desa',
     perpetratorAge: '22',
-    perpetratorAddress: 'Desa Keli, Mauponggo',
+    perpetratorAddress: 'Desa Maukeli, Kec. Mauponggo',
     perpetratorRelationship: 'Tetangga / Kenalan',
 
     // Data Pelapor
@@ -300,9 +449,9 @@ export const INITIAL_REPORTS: ReportItem[] = [
     victimName: 'Ibu Veronika D.',
     victimGender: 'perempuan',
     victimAge: '28',
-    victimAddress: 'Dusun III Desa Danga, Kec. Aesesa, Kab. Nagekeo',
+    victimAddress: 'Dusun III Kelurahan Danga, Kec. Aesesa, Kab. Nagekeo',
     kecamatan: 'Aesesa',
-    desaKelurahan: 'Danga',
+    desaKelurahan: 'Kelurahan Danga',
     incidentDate: '2026-11-09',
     incidentTime: '19:00 WITA',
     incidentPlace: 'Rumah Keluarga',
@@ -312,7 +461,7 @@ export const INITIAL_REPORTS: ReportItem[] = [
     perpetratorKnown: true,
     perpetratorName: 'Suami Korban',
     perpetratorAge: '33',
-    perpetratorAddress: 'Desa Danga, Kec. Aesesa',
+    perpetratorAddress: 'Kelurahan Danga, Kec. Aesesa',
     perpetratorRelationship: 'Suami',
 
     // Data Pelapor

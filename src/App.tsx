@@ -6,7 +6,13 @@ import {
   X, MessageCircle, Clock, HeartHandshake, User, Users, Calendar,
   AlertCircle, BookOpen
 } from 'lucide-react';
-import { NAGEKEO_KECAMATAN_DATA, EMERGENCY_CONTACTS, CATEGORY_LABELS, INITIAL_REPORTS } from './data/mockData';
+import {
+  NAGEKEO_KECAMATAN_DATA,
+  EMERGENCY_CONTACTS,
+  CATEGORY_LABELS,
+  INITIAL_REPORTS,
+  formatDesaKelurahanLabel
+} from './data/mockData';
 import { ReportItem, CaseStatus, ReportCategory, NagekeoKecamatan, ConfidentialityLevel } from './types';
 import { 
   sanitizeInput, 
@@ -172,7 +178,7 @@ export default function App() {
   const [victimGender, setVictimGender] = useState<'perempuan' | 'laki-laki'>('perempuan');
   const [victimAge, setVictimAge] = useState<string>('');
   const [kecamatan, setKecamatan] = useState<NagekeoKecamatan>('Aesesa');
-  const [desaKelurahan, setDesaKelurahan] = useState<string>('Danga');
+  const [desaKelurahan, setDesaKelurahan] = useState<string>('Kelurahan Danga');
   const [victimAddressDetail, setVictimAddressDetail] = useState<string>('');
   const [incidentDate, setIncidentDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [incidentTime, setIncidentTime] = useState<string>('Siang / Sore Hari');
@@ -299,9 +305,10 @@ export default function App() {
     const ticketCode = generateTicketCode();
     const randomPin = Math.floor(1000 + Math.random() * 9000).toString();
 
+    const formattedDesaKelurahan = formatDesaKelurahanLabel(desaKelurahan, kecamatan);
     const fullVictimAddress = sanitizedVictimAddress
-      ? `${sanitizedVictimAddress}, Desa ${desaKelurahan}, Kec. ${kecamatan}`
-      : `Desa ${desaKelurahan}, Kec. ${kecamatan}, Kab. Nagekeo`;
+      ? `${sanitizedVictimAddress}, ${formattedDesaKelurahan}, Kec. ${kecamatan}`
+      : `${formattedDesaKelurahan}, Kec. ${kecamatan}, Kab. Nagekeo`;
 
     const buildReportPayload = (code: string): ReportItem => ({
       id: `rep_${Date.now()}`,
@@ -766,7 +773,7 @@ export default function App() {
                       >
                         {NAGEKEO_KECAMATAN_DATA[kecamatan]?.map((desa) => (
                           <option key={desa} value={desa}>
-                            Desa {desa}
+                            {desa}
                           </option>
                         ))}
                       </select>
@@ -1139,7 +1146,7 @@ export default function App() {
                   <div className="text-[11px] text-stone-600 space-y-0.5 pt-1 border-t border-stone-200">
                     <div><strong>Korban:</strong> {submittedTicket.victimName} ({submittedTicket.victimGender === 'perempuan' ? 'Perempuan' : 'Laki-laki'}, {submittedTicket.victimAge} th)</div>
                     <div><strong>Pelapor:</strong> {submittedTicket.reporterName} ({submittedTicket.reporterRelationship}) · HP: {submittedTicket.reporterContact}</div>
-                    <div><strong>Lokasi:</strong> Desa {submittedTicket.desaKelurahan}, Kec. {submittedTicket.kecamatan}</div>
+                    <div><strong>Lokasi:</strong> {formatDesaKelurahanLabel(submittedTicket.desaKelurahan, submittedTicket.kecamatan)}, Kec. {submittedTicket.kecamatan}</div>
                   </div>
 
                   {getSavedSpreadsheetInfo() && (
